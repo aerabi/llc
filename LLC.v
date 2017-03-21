@@ -37,31 +37,75 @@ Inductive ctx : Type :=
   | empty_ctx : ctx
   | update_ctx : ctx -> id -> ty -> ctx.
 
+Notation "'[]'" := empty_ctx (at level 10).
+
+Notation "G '::' x T" := (update_ctx G x T) (at level 15, left associativity).
+
 Fixpoint update_l_ctx x T G :=
   match G with
-  | empty_ctx => update_ctx empty_ctx x T
+  | [] => update_ctx ([]) x T
   | update_ctx G' x' T' => update_ctx (update_l_ctx x T G') x' T'
   end.
 
+Notation "x T '::' G" := (update_l_ctx x T G) (at level 14, right associativity).
+
 Lemma ctx_singleton : forall x T,
-  update_ctx empty_ctx x T = update_l_ctx x T empty_ctx.
+  update_ctx ([]) x T = update_l_ctx x T ([]).
 Proof.
   intros. simpl. reflexivity.
 Qed.
 
-Definition singleton_ctx x T := update_ctx empty_ctx x T.
+Notation "'[' x T ']'" := (update_ctx ([]) x T) (at level 10).
 
 Lemma ctx_lr : forall x x' T T',
-  update_ctx (singleton_ctx x T) x' T' = update_l_ctx x T (singleton_ctx x' T').
+  update_ctx (update_ctx empty_ctx x T) x' T' = update_l_ctx x T (update_ctx empty_ctx x' T').
 Proof.
-  intros. simpl. unfold singleton_ctx. reflexivity.
+  intros. simpl. reflexivity.
 Qed.
+
+Lemma ctx_lr' : forall G x x' T T',
+  update_ctx (update_l_ctx x T G) x' T' = update_l_ctx x T (update_ctx G x' T').
+Proof.
+  induction G.
+  - intros. simpl. reflexivity.
+  - intros. rewrite <- IHG. simpl. reflexivity.
+Qed.
+
+Reserved Notation "G1 'o' G2" (at level 20).
 
 Fixpoint concat_ctx (G1 : ctx) (G2 : ctx) : ctx :=
   match G1 with
-  | empty_ctx => G2
-  | update_ctx G1' x T => concat_ctx G1' (update_l_ctx x T G2)
-  end.
+  | [] => G2
+  | update_ctx G1' x T => G1' o (update_l_ctx x T G2)
+  end
+
+where "G1 'o' G2" := (concat_ctx G1 G2).
+
+Proposition concat_ctx_update : forall G1 G2 i T,
+  G1 o (update_ctx G2 i T) = update_ctx (G1 o G2) i T.
+Proof.
+  induction G1. induction G2.
+  - intros. simpl. reflexivity.
+  - intros i' T. simpl. reflexivity.
+  - intros G2 i' T.
+    assert (Hlr : (update_ctx G1 i t) o G2 = G1 o (update_l_ctx i t G2)). { reflexivity. }
+    rewrite -> Hlr. apply IHG1 with (G2 := update_l_ctx i t G2).
+Qed.
+
+Corollary concat_ctx_null_r : forall G, G o [] = G.
+Proof.
+  induction G.
+  - simpl. reflexivity.
+  - simpl. assert (H : update_ctx G i t = update_ctx (G o []) i t). { rewrite -> IHG. reflexivity. }
+    rewrite -> H. apply concat_ctx_update.
+Qed.
+
+Corollary concat_ctx_singleton : forall G i T, G o (update_ctx ([]) i T) = update_ctx G i T.
+Proof.
+  induction G.
+  - intros. simpl. reflexivity.
+  - intros i' T. simpl. rewrite -> concat_ctx_update. rewrite -> IHG. reflexivity.
+Qed.
 
 Inductive ctx_split : ctx -> ctx -> ctx -> Prop :=
   | M_Empty : ctx_split empty_ctx empty_ctx empty_ctx
@@ -103,6 +147,40 @@ Inductive q_rel'' : q -> ctx -> Prop :=
 
 where "Q '((' G '))'" := (q_rel'' Q G).
 
+Lemma q_rel''_concat_ctx : forall Q G1 G2,
+  Q (( G1 )) ->
+  Q (( G2 )) ->
+  Q (( G1 o G2 )).
+Proof.
+  intros Q G1 G2 H H'. induction G2.
+  - simpl. rewrite -> concat_ctx_null_r. apply H.
+  - inversion H'. subst. apply IHG2 in H5. rewrite -> concat_ctx_update. apply Q_Rel_Ctx_Update.
+    + apply H3.
+    + apply H5.
+Qed.
+
+Proposition q_rel''_update_l_ctx : forall G Q x T,
+  Q (( update_l_ctx x T G )) -> q_rel' Q T /\ Q (( G )).
+Proof.
+  induction G.
+  - intros. rewrite <- ctx_singleton in H. inversion H. subst. split; try apply H3; try apply H5.
+  - intros. rewrite <- ctx_lr' in H. inversion H. subst. apply IHG in H5. split.
+    + inversion H5. apply H0.
+    + apply Q_Rel_Ctx_Update; try apply H3. inversion H5. apply H1.
+Qed.
+
+Lemma q_rel''_concat_ctx' : forall G1 G2 Q,
+  Q (( G1 o G2 )) -> Q (( G1 )) /\ Q (( G2 )).
+Proof.
+  induction G1. induction G2.
+  - intros. split; apply Q_Rel_Ctx_Empty.
+  - intros. split; try apply Q_Rel_Ctx_Empty. simpl in H. apply H.
+  - intros.
+    assert (Hlr : (update_ctx G1 i t) o G2 = G1 o (update_l_ctx i t G2) ). { reflexivity. }
+    rewrite -> Hlr in H. apply IHG1 in H. inversion H as [H1 H2]. apply q_rel''_update_l_ctx in H2.
+    inversion H2 as [H21 H22]. split; try apply H22. apply Q_Rel_Ctx_Update; try apply H21; try apply H1.
+Qed.
+
 Reserved Notation "G '|-' t '|' T" (at level 60).
 
 Inductive ctx_ty : ctx -> tm -> ty -> Prop :=
@@ -137,3 +215,14 @@ Inductive ctx_ty : ctx -> tm -> ty -> Prop :=
       concat_ctx G1 G2 |- tmapp t1 t2 | T12
 
 where "G '|-' t '|' T" := (ctx_ty G t T).
+
+Hint Constructors ctx_ty.
+
+Proposition exchange_weak : forall t x1 x2 T1 T2 T G,
+  update_ctx (update_ctx G x1 T1) x2 T2 |- t | T ->
+  update_ctx (update_ctx G x2 T2) x1 T1 |- t | T.
+
+
+Lemma exchange : forall t x1 x2 T1 T2 T G1 G2,
+  concat_ctx (update_ctx (update_ctx G1 x1 T1) x2 T2) G2 |- t | T ->
+  concat_ctx (update_ctx (update_ctx G1 x2 T2) x1 T1) G2 |- t | T.
