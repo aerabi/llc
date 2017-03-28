@@ -22,7 +22,7 @@ where "'qty'" := (q -> ty).
 
 Notation "T ** T'" := (ty_pair T T') (at level 20, left associativity).
 
-Notation "T --> T'" := (ty_pair T T') (at level 40, left associativity).
+Notation "T --> T'" := (ty_arrow T T') (at level 40, left associativity).
 
 Inductive tm : Type :=
   | tmvar : id -> tm
@@ -40,6 +40,12 @@ Inductive ctx : Type :=
 Notation "'[]'" := empty_ctx (at level 10).
 
 Notation "G '::' x T" := (update_ctx G x T) (at level 15, left associativity).
+
+Proposition update_ctx_unique : forall G G' x x' T T',
+  update_ctx G x T = update_ctx G' x' T' -> G = G' /\ x = x' /\ T = T'.
+Proof.
+  induction G; induction G'; intros; inversion H; split; auto.
+Qed.
 
 Fixpoint update_l_ctx x T G :=
   match G with
@@ -136,6 +142,11 @@ Qed.
 Inductive q_rel' : q -> ty -> Prop :=
   | Q_Rel_Type : forall Q Q' P, Q << Q' -> q_rel' Q (P Q').
 
+Proposition q_rel'_qlin : forall T, q_rel' qlin T.
+Proof.
+  induction T; induction q0; apply Q_Rel_Type; try apply Q_Ref; try apply Q_Axiom.
+Qed.
+
 Reserved Notation "Q '((' G '))'" (at level 30).
 
 Inductive q_rel'' : q -> ctx -> Prop :=
@@ -218,11 +229,45 @@ where "G '|-' t '|' T" := (ctx_ty G t T).
 
 Hint Constructors ctx_ty.
 
-Proposition exchange_weak : forall t x1 x2 T1 T2 T G,
-  update_ctx (update_ctx G x1 T1) x2 T2 |- t | T ->
-  update_ctx (update_ctx G x2 T2) x1 T1 |- t | T.
-
+Proposition exchange_weak : forall t x1 x2 T1 T2 T,
+  update_ctx (update_ctx ([]) x1 T1) x2 T2 |- t | T ->
+  update_ctx (update_ctx ([]) x2 T2) x1 T1 |- t | T.
+Proof.
+  induction t.
+  - intros. inversion H. subst. induction G2.
+    + simpl in H0. rewrite -> concat_ctx_update in H0. apply update_ctx_unique in H0. inversion H0.
+      inversion H3. subst.
+      assert ( H' : update_ctx (update_ctx ([]) x2 T2) x1 T1 = (update_ctx ([]) x2 T2) o (update_ctx ([]) x1 T1) ).
+      { simpl. reflexivity. }
+      rewrite -> H'. apply T_Var. apply q_rel''_concat_ctx; try apply Q_Rel_Ctx_Empty. apply Q_Rel_Ctx_Update.
+      rewrite -> H1 in H2. inversion H2. subst. apply H7. apply Q_Rel_Ctx_Empty.
+    + simpl in H0. rewrite -> concat_ctx_update in H0. apply update_ctx_unique in H0. inversion H0.
+      inversion H3. subst. induction G2.
+      * simpl in H1. rewrite -> concat_ctx_update in H1. apply update_ctx_unique in H1.
+        inversion H1. inversion H5. subst.
+        assert ( H' : update_ctx (update_ctx ([]) x2 T2) x1 T1 = (update_ctx (update_ctx ([]) x2 T2) x1 T1) o ([]) ).
+        { rewrite -> concat_ctx_null_r. reflexivity. }
+        rewrite -> H'. apply T_Var. apply q_rel''_concat_ctx; try apply Q_Rel_Ctx_Empty.
+        rewrite -> concat_ctx_null_r in H4. subst. simpl in H2. apply H2.
+      * simpl in H1. rewrite -> concat_ctx_update in H1. apply update_ctx_unique in H1.
+        inversion H1. induction G2. simpl in H4. rewrite -> concat_ctx_update in H4. inversion H4.
+        simpl in H4. rewrite -> concat_ctx_update in H4. inversion H4.
+  - intros. inversion H. subst. apply T_Bool.
+    assert ( H' : update_ctx (update_ctx ([]) x1 T1) x2 T2 = (update_ctx ([]) x1 T1) o (update_ctx ([]) x2 T2) ).
+    { simpl. reflexivity. }
+    rewrite -> H' in H4. apply q_rel''_concat_ctx' in H4.
+    assert ( H'' : update_ctx (update_ctx ([]) x2 T2) x1 T1 = (update_ctx ([]) x2 T2) o (update_ctx ([]) x1 T1) ).
+    { simpl. reflexivity. }
+    rewrite -> H''. inversion H4. apply q_rel''_concat_ctx; auto.
+  - intros. inversion H. subst.
+  Admitted.
 
 Lemma exchange : forall t x1 x2 T1 T2 T G1 G2,
   concat_ctx (update_ctx (update_ctx G1 x1 T1) x2 T2) G2 |- t | T ->
   concat_ctx (update_ctx (update_ctx G1 x2 T2) x1 T1) G2 |- t | T.
+Proof.
+  induction t.
+  - intros. inversion H. subst. admit.
+  - admit.
+  - intros. inversion H. subst.
+Qed.
