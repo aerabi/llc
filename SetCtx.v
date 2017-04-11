@@ -37,9 +37,24 @@ Module Type KeyValueSet.
 
   (* The rest of the definition is associated with access to key-value elements of each set. *)
   
-  (* Types of Keys and Values *)
-  Parameter K : Type.
-  Parameter V : Type.
+  (* Quantifiers : Linear & Unrestricted *)
+  Inductive Q : Type :=
+    | qlin : Q
+    | qun : Q.
+
+  (* Names of the Variables *)
+  Inductive K : Type :=
+    | Id : nat -> K.
+
+  (* Type and Pretype *)
+  Reserved Notation "'P'" (at level 10).
+
+  Inductive V : Type :=
+    | ty_bool : P
+    | ty_pair : V -> V -> P
+    | ty_arrow : V -> V -> P
+
+  where "'P'" := (Q -> V).
 
   (* Constructors *)
   Parameter append : T -> K -> V -> T.
