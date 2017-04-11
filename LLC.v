@@ -247,6 +247,19 @@ Proof.
     inversion H2 as [H21 H22]. split; try apply H22. apply Q_Rel_Ctx_Update; try apply H21; try apply H1.
 Qed.
 
+Inductive q_rel''_except : q -> ctx -> id -> ty -> Prop :=
+  | Q_Rel_Ctx_Except : forall Q G1 G2 x T,
+      Q (( G1 )) ->
+      Q (( G2 )) ->
+      q_rel''_except Q ( (update_ctx G1 x T) o G2 ) x T.
+
+Proposition q_rel''_except_invert : forall Q G1 G2 x T,
+  q_rel''_except Q ( (update_ctx G1 x T) o G2 ) x T ->
+  Q (( G1 )) /\ Q (( G2 )).
+Proof.
+  intros. inversion H. subst. 
+Qed.
+
 Reserved Notation "G '|-' t '|' T" (at level 60).
 
 Inductive ctx_ty : ctx -> tm -> ty -> Prop :=
@@ -294,11 +307,10 @@ Proof.
     { apply ctx_contains_concat. }
     simpl in Hc. rewrite -> H0 in Hc. rewrite <- concat_ctx_update_lr in Hc. 
     apply ctx_contains_concat'' in Hc. inversion Hc.
-    { apply ctx_contains_concat' in H1. inversion H1 as [G']. inversion H3 as [G'']. subst.
+    { apply ctx_contains_concat' in H1. inversion H1 as [G']. inversion H3 as [G'']. rewrite -> H4.
       rewrite -> concat_ctx_update_lr. rewrite -> concat_ctx_update_lr. rewrite -> concat_ctx_assoc.
-      apply T_Var.
-    
-    apply ctx_contains_concat' in Hc. 
+      apply T_Var. subst. rewrite -> concat_ctx_assoc in H0.
+      
     inversion Hc as [G']. inversion H1 as [G'']. simpl. 
   - admit.
   - intros. inversion H. subst.
