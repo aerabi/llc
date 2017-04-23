@@ -66,6 +66,12 @@ Inductive q_rel : q -> q -> Prop :=
 
 where "Q1 '<<' Q2" := (q_rel Q1 Q2).
 
+Lemma q_rel_trans : forall Q Q' Q'', Q << Q' -> Q' << Q'' -> Q << Q''.
+Proof.
+  induction Q; induction Q'; induction Q''; intros H H';
+  try inversion H; try inversion H'; try apply Q_Ref; try apply Q_Axiom.
+Qed.
+
 Inductive q_rel' : q -> ty -> Prop :=
   | Q_Rel_Type : forall Q Q' P, Q << Q' -> q_rel' Q (P Q').
 
@@ -79,6 +85,16 @@ Inductive q_rel'' : q -> ctx -> Prop :=
       Q (( update_ctx G x T ))
 
 where "Q '((' G '))'" := (q_rel'' Q G).
+
+Lemma q_rel''_concat_ctx : forall Q G1 G2,
+  Q (( G1 )) ->
+  Q (( G2 )) ->
+  Q (( G1 ∪ G2 )).
+Proof. Admitted.
+
+Lemma q_rel''_concat_ctx' : forall G1 G2 Q,
+  Q (( G1 ∪ G2 )) -> Q (( G1 )) /\ Q (( G2 )).
+Proof. Admitted.
 
 Reserved Notation "G '|-' t '|' T" (at level 60).
 
@@ -125,4 +141,62 @@ Proof.
   assert (H' : (update_ctx (update_ctx G1 x1 T1) x2 T2) ∪ G2 = (update_ctx (update_ctx G1 x2 T2) x1 T1) ∪ G2).
     { apply kvs.exchange. }
   rewrite <- H'. apply H.
+Qed.
+
+Lemma unrestricted_weakening : forall G t x T P,
+  G |- t | T ->
+  update_ctx G x (P qun) |- t | T.
+Proof.
+  assert (concat_to_concat : forall G1 G2, kvs.concat G1 G2 = G1 ∪ G2). { intros. reflexivity. }
+  assert (append_to_append : forall G k v, kvs.append G k v = update_ctx G k v). { intros. reflexivity. }
+  intros. generalize dependent G. generalize dependent T. induction t.
+  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. repeat rewrite -> concat_to_concat.
+    apply T_Var with ( G2 := G2 ∪ ( kvs.append kvs.empty x (P qun) ) ). apply q_rel''_concat_ctx' in H2.
+    inversion H2 as [H2l H2r]. apply q_rel''_concat_ctx; try apply H2l. apply q_rel''_concat_ctx; try apply H2r.
+    eapply Q_Rel_Ctx_Update; try apply Q_Rel_Ctx_Empty. apply Q_Rel_Type. apply Q_Ref.
+  - intros. inversion H. subst. apply T_Bool. apply Q_Rel_Ctx_Update; try apply H4. apply Q_Rel_Type. apply Q_Ref.
+  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. rewrite -> concat_to_concat.
+    eapply T_If.
+    + apply H4.
+    + rewrite <- kvs.append_to_concat. rewrite -> append_to_append. apply IHt2. apply H6.
+    + rewrite <- kvs.append_to_concat. rewrite -> append_to_append. apply IHt3. apply H7.
+  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. rewrite <- kvs.append_to_concat. 
+    rewrite -> append_to_append. rewrite -> concat_to_concat. apply T_Pair; try apply H3; try apply H7; try apply H8.
+    apply IHt2. apply H5.
+  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. rewrite <- kvs.append_to_concat. 
+    rewrite -> append_to_append. rewrite -> concat_to_concat. eapply T_Split. inversion H. subst.
+    + apply H6.
+    + assert ( H' : update_ctx (update_ctx (update_ctx G2 x (P qun) ) i T1) i0 T2 = 
+        kvs.concat ( kvs.concat ( kvs.concat G2 (kvs.append kvs.empty x (P qun) ) ) (kvs.append kvs.empty i T1) ) (kvs.append kvs.empty i0 T2) ).
+      { repeat rewrite <- kvs.append_to_concat. reflexivity. }
+      rewrite -> H'. rewrite -> kvs.set_exchange.
+      assert ( weak_set_exchange : forall A B C, kvs.concat (kvs.concat A B) C = kvs.concat (kvs.concat A C) B ).
+      { intros. rewrite <- kvs.id_right. rewrite -> kvs.set_exchange. rewrite -> kvs.id_right. reflexivity. }
+      rewrite -> weak_set_exchange. repeat rewrite <- kvs.append_to_concat. apply IHt2. apply H7.
+  - intros. inversion H. subst. apply T_Abs.
+    + rewrite -> kvs.append_to_concat. apply q_rel''_concat_ctx; try apply H6. apply Q_Rel_Ctx_Update; try apply Q_Rel_Ctx_Empty.
+      apply Q_Rel_Type. destruct q0; try apply Q_Axiom. apply Q_Ref.
+    + assert ( H' : update_ctx (update_ctx G x (P qun) ) i t = 
+        kvs.concat ( kvs.concat G ( kvs.append kvs.empty x (P qun) ) ) (kvs.append kvs.empty i t) ).
+      { repeat rewrite <- kvs.append_to_concat. reflexivity. }
+      assert ( weak_set_exchange : forall A B C, kvs.concat (kvs.concat A B) C = kvs.concat (kvs.concat A C) B ).
+      { intros. rewrite <- kvs.id_right. rewrite -> kvs.set_exchange. rewrite -> kvs.id_right. reflexivity. }
+      rewrite -> H'. rewrite -> weak_set_exchange. repeat rewrite <- kvs.append_to_concat. apply IHt. apply H7.
+  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. rewrite <- kvs.append_to_concat.
+    eapply T_App.
+    + apply H3.
+    + apply IHt2. apply H5.
+Qed.
+
+Lemma unrestricted_contraction : forall G t x1 x2 x3 T P,
+  update_ctx (update_ctx G x2 (P qun) ) x3 (P qun) |- t | T ->
+  x2 = x1 ->
+  x3 = x1 ->
+  update_ctx G x1 (P qun) |- t | T.
+Proof.
+  assert (append_to_append : forall G k v, kvs.append G k v = update_ctx G k v). { intros. reflexivity. }
+  intros. subst.
+  assert ( H' : kvs.contains ( update_ctx G x1 (P qun) ) x1 (P qun) ).
+  { eapply kvs.contains_append. reflexivity. }
+  apply kvs.unique_append in H'. rewrite -> append_to_append in H'. rewrite -> H' in H. apply H.
 Qed.
