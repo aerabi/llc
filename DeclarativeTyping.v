@@ -1,6 +1,6 @@
 Require Import SetCtx.
 
-Module NewLLC ( kvs : SetCtx.KeyValueSet ).
+Module Type DeclarativeTyping ( kvs : SetCtx.KeyValueSet ).
 
 (* Context *)
 Definition ctx : Type := kvs.T.
@@ -200,3 +200,5 @@ Proof.
   { eapply kvs.contains_append. reflexivity. }
   apply kvs.unique_append in H'. rewrite -> append_to_append in H'. rewrite -> H' in H. apply H.
 Qed.
+
+End DeclarativeTyping.
