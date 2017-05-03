@@ -1,63 +1,53 @@
+Require Import Types.
+Require Import Basics.
 Require Import SetCtx.
 
-Module Type DeclarativeTyping ( kvs : SetCtx.KeyValueSet ).
+(* Define new ModuleType for id and ty, for later using them as key-value types of the
+   Key-Value Set. *)
+
+Module Type ModuleId <: ModuleType.
+
+  Definition T := id.
+
+End ModuleId.
+
+Module Type ModuleTy <: ModuleType.
+
+  Definition T := ty.
+
+End ModuleTy.
+
+(* Now, here is the Declarative Typing using a Key-Value Set as the Context. *)
+
+Module Type DeclarativeTyping
+    ( M : SetCtx.AbelianMonoid )
+    ( mid : ModuleId )
+    ( mty : ModuleTy )
+    ( kvs : SetCtx.KeyValueSet M mid mty ).
+
+Import kvs.
 
 (* Context *)
-Definition ctx : Type := kvs.T.
-Definition empty_ctx : ctx := kvs.empty.
-Definition update_ctx := kvs.append.
-Definition concat_ctx := kvs.concat.
+Notation "'Ø'" := (empty).
+Notation "G '∷' x T" := (append G x T) (at level 29, left associativity).
+Notation "G1 '∪' G2" := (M.mult G1 G2) (at level 40, left associativity).
 
-Notation "'Ø'" := (empty_ctx).
-Notation "G '∷' x T" := (update_ctx G x T) (at level 15, left associativity).
-Notation "G1 '∪' G2" := (concat_ctx G1 G2) (at level 20, left associativity).
+(* Context Split *)
+Parameter split : T -> T -> T.
 
-(* Quantifiers : Linear & Unrestricted *)
-Definition q : Type := kvs.Q.
-Definition qun := kvs.qun.
-Definition qlin := kvs.qlin.
+Notation "G1 '⊔' G2" := (split G1 G2) (at level 20, left associativity).
 
-(* Boolean Literal : True & False *)
-Inductive b : Type :=
-  | btrue : b
-  | bfalse : b.
+Parameter split_empty : empty ⊔ empty = empty.
+Parameter split_un : forall G1 G2 x P, 
+  ( append G1 x (P qun) ) ⊔ ( append G2 x (P qun) ) = append (G1 ⊔ G2) x (P qun).
+Parameter split_lin_l : forall G1 G2 x P,
+  ( append G1 x (P qlin) ) ⊔ G2 = append (G1 ⊔ G2) x (P qlin).
+Parameter split_lin_r : forall G1 G2 x P,
+  G1 ⊔ ( append G2 x (P qlin) ) = append (G1 ⊔ G2) x (P qlin).
 
-(* Names of the Variables *)
-Definition id : Type := kvs.K.
+Notation "'ctx'" := T.
 
-(* Type and Pretype *)
-Definition ty : Type := kvs.V.
-Definition ty_bool := kvs.ty_bool.
-Definition ty_pair := kvs.ty_pair.
-Definition ty_arrow := kvs.ty_arrow.
-Definition qty : Type := (q -> ty).
-
-Notation "T ** T'" := (ty_pair T T') (at level 20, left associativity).
-
-Notation "T --> T'" := (ty_arrow T T') (at level 40, left associativity).
-
-(* Terms *)
-Inductive tm : Type :=
-  | tmvar : id -> tm
-  | tmbool : q -> b -> tm
-  | tmif : tm -> tm -> tm -> tm
-  | tmpair : q -> tm -> tm -> tm
-  | tmsplit : tm -> id -> id -> tm -> tm
-  | tmabs : q -> id -> ty -> tm -> tm
-  | tmapp : tm -> tm -> tm.
-
-Inductive ctx_split : ctx -> ctx -> ctx -> Prop :=
-  | M_Empty : ctx_split empty_ctx empty_ctx empty_ctx
-  | M_Un : forall G G1 G2 x P,
-      ctx_split G G1 G2 -> 
-      ctx_split (update_ctx G x (P qun)) (update_ctx G1 x (P qun)) (update_ctx G2 x (P qun))
-  | M_Lin1 : forall G G1 G2 x P,
-      ctx_split G G1 G2 ->
-      ctx_split (update_ctx G x (P qlin)) (update_ctx G1 x (P qlin)) G2
-  | M_Lin2 : forall G G1 G2 x P,
-      ctx_split G G1 G2 ->
-      ctx_split (update_ctx G x (P qlin)) G1 (update_ctx G2 x (P qlin)).
-
+(* Relations between Quantifiers and Types *)
 Reserved Notation "Q1 '<<' Q2" (at level 70).
 
 Inductive q_rel : q -> q -> Prop :=
@@ -75,130 +65,124 @@ Qed.
 Inductive q_rel' : q -> ty -> Prop :=
   | Q_Rel_Type : forall Q Q' P, Q << Q' -> q_rel' Q (P Q').
 
-Reserved Notation "Q '((' G '))'" (at level 30).
+Reserved Notation "Q '〔' G '〕'" (at level 30).
 
 Inductive q_rel'' : q -> ctx -> Prop :=
-  | Q_Rel_Ctx_Empty : forall Q, Q (( empty_ctx ))
+  | Q_Rel_Ctx_Empty : forall Q, Q 〔empty〕
   | Q_Rel_Ctx_Update : forall Q G x T, 
       q_rel' Q T ->
-      Q (( G )) ->
-      Q (( update_ctx G x T ))
+      Q 〔G〕 ->
+      Q 〔append G x T〕
 
-where "Q '((' G '))'" := (q_rel'' Q G).
+where "Q '〔' G '〕'" := (q_rel'' Q G).
 
 Lemma q_rel''_concat_ctx : forall Q G1 G2,
-  Q (( G1 )) ->
-  Q (( G2 )) ->
-  Q (( G1 ∪ G2 )).
+  Q 〔G1〕 ->
+  Q 〔G2〕 ->
+  Q 〔G1 ∪ G2〕.
 Proof. Admitted.
 
 Lemma q_rel''_concat_ctx' : forall G1 G2 Q,
-  Q (( G1 ∪ G2 )) -> Q (( G1 )) /\ Q (( G2 )).
+  Q 〔G1 ∪ G2〕 -> Q 〔G1〕 /\ Q 〔G2〕.
 Proof. Admitted.
 
 Reserved Notation "G '|-' t '|' T" (at level 60).
 
+(* Declarative Typing *)
 Inductive ctx_ty : ctx -> tm -> ty -> Prop :=
   | T_Var : forall G1 G2 x T,
-      qun (( concat_ctx G1 G2 )) ->
-      (concat_ctx (update_ctx G1 x T) G2) |- (tmvar x) | T
+      qun 〔G1 ∪ G2〕 ->
+      ( (append G1 x T) ∪ G2 ) |- (tmvar x) | T
   | T_Bool : forall G (Q : q) (B : b),
-      qun (( G )) ->
+      qun 〔G〕 ->
       G |- (tmbool Q B) | ty_bool Q
   | T_If : forall G1 G2 t1 t2 t3 Q T,
       G1 |- t1 | ty_bool Q ->
       G2 |- t2 | T ->
       G2 |- t3 | T ->
-      concat_ctx G1 G2 |- tmif t1 t2 t3 | T
+      G1 ⊔ G2 |- tmif t1 t2 t3 | T
   | T_Pair : forall G1 G2 t1 t2 T1 T2 Q,
       G1 |- t1 | T1 ->
       G2 |- t2 | T2 ->
       q_rel' Q T1 ->
       q_rel' Q T2 ->
-      concat_ctx G1 G2 |- tmpair Q t1 t2 | (T1 ** T2) Q
+      G1 ⊔ G2 |- tmpair Q t1 t2 | (T1 ** T2) Q
   | T_Split : forall G1 G2 t1 t2 T1 T2 T x y Q,
       G1 |- t1 | (T1 ** T2) Q ->
-      update_ctx (update_ctx G2 x T1) y T2 |- t2 | T ->
-      concat_ctx G1 G2 |- tmsplit t1 x y t2 | T
+      append (append G2 x T1) y T2 |- t2 | T ->
+      G1 ⊔ G2 |- tmsplit t1 x y t2 | T
   | T_Abs : forall Q G t2 T1 T2 x,
-      Q (( G )) ->
-      update_ctx G x T1 |- t2 | T2 ->
+      Q 〔G〕 ->
+      append G x T1 |- t2 | T2 ->
       G |- tmabs Q x T1 t2 | (T1 --> T2) Q
   | T_App : forall G1 G2 t1 t2 T11 T12 Q,
       G1 |- t1 | (T11 --> T12) Q ->
       G2 |- t2 | T11 ->
-      concat_ctx G1 G2 |- tmapp t1 t2 | T12
+      G1 ⊔ G2 |- tmapp t1 t2 | T12
 
 where "G '|-' t '|' T" := (ctx_ty G t T).
 
 Hint Constructors ctx_ty.
 
+(* Three Lemmas *)
 Lemma exchange : forall t x1 x2 T1 T2 T G1 G2,
-  concat_ctx (update_ctx (update_ctx G1 x1 T1) x2 T2) G2 |- t | T ->
-  concat_ctx (update_ctx (update_ctx G1 x2 T2) x1 T1) G2 |- t | T.
+  (append (append G1 x1 T1) x2 T2) ∪ G2 |- t | T ->
+  (append (append G1 x2 T2) x1 T1) ∪ G2 |- t | T.
 Proof.
   intros.
-  assert (H' : (update_ctx (update_ctx G1 x1 T1) x2 T2) ∪ G2 = (update_ctx (update_ctx G1 x2 T2) x1 T1) ∪ G2).
-    { apply kvs.exchange. }
+  assert (H' : (append (append G1 x1 T1) x2 T2) ∪ G2 = (append (append G1 x2 T2) x1 T1) ∪ G2).
+    { apply exchange. }
   rewrite <- H'. apply H.
 Qed.
 
 Lemma unrestricted_weakening : forall G t x T P,
   G |- t | T ->
-  update_ctx G x (P qun) |- t | T.
+  append G x (P qun) |- t | T.
 Proof.
-  assert (concat_to_concat : forall G1 G2, kvs.concat G1 G2 = G1 ∪ G2). { intros. reflexivity. }
-  assert (append_to_append : forall G k v, kvs.append G k v = update_ctx G k v). { intros. reflexivity. }
-  intros. generalize dependent G. generalize dependent T. induction t.
-  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. repeat rewrite -> concat_to_concat.
-    apply T_Var with ( G2 := G2 ∪ ( kvs.append kvs.empty x (P qun) ) ). apply q_rel''_concat_ctx' in H2.
+  intros. generalize dependent G. generalize dependent T0. induction t; intros; inversion H; subst.
+  - rewrite -> append_to_concat. rewrite -> M.assoc. eapply T_Var. apply q_rel''_concat_ctx' in H2.
     inversion H2 as [H2l H2r]. apply q_rel''_concat_ctx; try apply H2l. apply q_rel''_concat_ctx; try apply H2r.
     eapply Q_Rel_Ctx_Update; try apply Q_Rel_Ctx_Empty. apply Q_Rel_Type. apply Q_Ref.
-  - intros. inversion H. subst. apply T_Bool. apply Q_Rel_Ctx_Update; try apply H4. apply Q_Rel_Type. apply Q_Ref.
-  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. rewrite -> concat_to_concat.
-    eapply T_If.
-    + apply H4.
-    + rewrite <- kvs.append_to_concat. rewrite -> append_to_append. apply IHt2. apply H6.
-    + rewrite <- kvs.append_to_concat. rewrite -> append_to_append. apply IHt3. apply H7.
-  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. rewrite <- kvs.append_to_concat. 
-    rewrite -> append_to_append. rewrite -> concat_to_concat. apply T_Pair; try apply H3; try apply H7; try apply H8.
-    apply IHt2. apply H5.
-  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. rewrite <- kvs.append_to_concat. 
-    rewrite -> append_to_append. rewrite -> concat_to_concat. eapply T_Split. inversion H. subst.
-    + apply H6.
-    + assert ( H' : update_ctx (update_ctx (update_ctx G2 x (P qun) ) i T1) i0 T2 = 
-        kvs.concat ( kvs.concat ( kvs.concat G2 (kvs.append kvs.empty x (P qun) ) ) (kvs.append kvs.empty i T1) ) (kvs.append kvs.empty i0 T2) ).
-      { repeat rewrite <- kvs.append_to_concat. reflexivity. }
-      rewrite -> H'. rewrite -> kvs.set_exchange.
-      assert ( weak_set_exchange : forall A B C, kvs.concat (kvs.concat A B) C = kvs.concat (kvs.concat A C) B ).
-      { intros. rewrite <- kvs.id_right. rewrite -> kvs.set_exchange. rewrite -> kvs.id_right. reflexivity. }
-      rewrite -> weak_set_exchange. repeat rewrite <- kvs.append_to_concat. apply IHt2. apply H7.
-  - intros. inversion H. subst. apply T_Abs.
-    + rewrite -> kvs.append_to_concat. apply q_rel''_concat_ctx; try apply H6. apply Q_Rel_Ctx_Update; try apply Q_Rel_Ctx_Empty.
-      apply Q_Rel_Type. destruct q0; try apply Q_Axiom. apply Q_Ref.
-    + assert ( H' : update_ctx (update_ctx G x (P qun) ) i t = 
-        kvs.concat ( kvs.concat G ( kvs.append kvs.empty x (P qun) ) ) (kvs.append kvs.empty i t) ).
-      { repeat rewrite <- kvs.append_to_concat. reflexivity. }
-      assert ( weak_set_exchange : forall A B C, kvs.concat (kvs.concat A B) C = kvs.concat (kvs.concat A C) B ).
-      { intros. rewrite <- kvs.id_right. rewrite -> kvs.set_exchange. rewrite -> kvs.id_right. reflexivity. }
-      rewrite -> H'. rewrite -> weak_set_exchange. repeat rewrite <- kvs.append_to_concat. apply IHt. apply H7.
-  - intros. inversion H. subst. rewrite -> kvs.append_to_concat. rewrite -> kvs.assoc. rewrite <- kvs.append_to_concat.
-    eapply T_App.
-    + apply H3.
-    + apply IHt2. apply H5.
+  - apply T_Bool. apply Q_Rel_Ctx_Update; try apply H4. apply Q_Rel_Type. apply Q_Ref.
+  - rewrite <- split_un. eapply T_If.
+    + apply IHt1 in H4. apply H4.
+    + apply IHt2 in H6. apply H6.
+    + apply IHt3 in H7. apply H7.
+  - rewrite <- split_un. apply T_Pair; try apply H7; try apply H8.
+    + apply IHt1 in H3. apply H3.
+    + apply IHt2 in H5. apply H5.
+  - rewrite <- split_un. eapply T_Split.
+    + apply IHt1 in H6. apply H6.
+    + assert ( H' : append (append (append G2 x (P qun) ) i T1) i0 T2 =
+        G2 ∪ (append empty x (P qun)) ∪ (append empty i T1) ∪ (append empty i0 T2) ).
+      { repeat rewrite <- append_to_concat. reflexivity. }
+      assert ( weak_set_exchange : forall A B C, A ∪ B ∪ C = A ∪ C ∪ B ).
+      { intros. rewrite <- M.id_r. rewrite -> M.exchange. rewrite -> M.id_r. reflexivity. }
+      rewrite -> H'. rewrite -> M.exchange. rewrite -> weak_set_exchange. repeat rewrite <- kvs.append_to_concat.
+      apply IHt2. apply H7.
+  - apply T_Abs.
+    + rewrite -> append_to_concat. apply q_rel''_concat_ctx; try apply H6. apply Q_Rel_Ctx_Update; try apply Q_Rel_Ctx_Empty.
+      apply Q_Rel_Type. destruct q; try apply Q_Axiom. apply Q_Ref.
+    + assert ( H' : append (append G x (P qun)) i t = G ∪ (append empty x (P qun)) ∪ (append empty i t) ).
+      { repeat rewrite <- append_to_concat. reflexivity. }
+      assert ( weak_set_exchange : forall A B C, A ∪ B ∪ C = A ∪ C ∪ B ).
+      { intros. rewrite <- M.id_r. rewrite -> M.exchange. rewrite -> M.id_r. reflexivity. }
+      rewrite -> H'. rewrite -> weak_set_exchange. repeat rewrite <- append_to_concat. apply IHt. apply H7.
+  - rewrite <- split_un. eapply T_App.
+    + apply IHt1 in H3. apply H3.
+    + apply IHt2 in H5. apply H5.
 Qed.
 
 Lemma unrestricted_contraction : forall G t x1 x2 x3 T P,
-  update_ctx (update_ctx G x2 (P qun) ) x3 (P qun) |- t | T ->
+  append (append G x2 (P qun) ) x3 (P qun) |- t | T ->
   x2 = x1 ->
   x3 = x1 ->
-  update_ctx G x1 (P qun) |- t | T.
+  append G x1 (P qun) |- t | T.
 Proof.
-  assert (append_to_append : forall G k v, kvs.append G k v = update_ctx G k v). { intros. reflexivity. }
   intros. subst.
-  assert ( H' : kvs.contains ( update_ctx G x1 (P qun) ) x1 (P qun) ).
-  { eapply kvs.contains_append. reflexivity. }
-  apply kvs.unique_append in H'. rewrite -> append_to_append in H'. rewrite -> H' in H. apply H.
+  assert ( H' : kvs.contains (append G x1 (P qun)) x1 (P qun) ).
+  { eapply contains_append. reflexivity. }
+  apply kvs.unique_append in H'. rewrite -> H' in H. apply H.
 Qed.
 
 End DeclarativeTyping.
