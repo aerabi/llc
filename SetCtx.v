@@ -1,32 +1,30 @@
-Module Type KeyValueSet.
+Require Import Types.
 
-  (* The class of all KeyValueSets is an Abelian Monoid. To define KeyValueSets, we must
-     furthermore define axioms on accessing the elements of each set,
-     and an axiom avoiding duplicated elements. The first part is related with the Monoid. *)
+Module Type AbelianMonoid.
 
   (* Type of Abelian Monoid *)
   Parameter T : Type.
 
   (* Constructors *)
-  Parameter empty : T.
-  Parameter concat : T -> T -> T.
+  Parameter null : T.
+  Parameter mult : T -> T -> T.
 
   (* Notations *)
-  Notation "s1 'o' s2" := (concat s1 s2) (at level 20, left associativity).
+  Notation "s1 'o' s2" := (mult s1 s2) (at level 20, left associativity).
 
   (* Decision *)
-  Parameter decide_empty : forall (s : T), { s = empty }+{ s <> empty }.
+  Parameter decide_empty : forall (s : T), { s = null }+{ s <> null }.
 
   (* Axioms of Monoid *)
-  Parameter assoc : forall m1 m2 m3, concat (concat m1 m2) m3 = concat m1 (concat m2 m3).
+  Parameter assoc : forall m1 m2 m3, (m1 o m2) o m3 = m1 o (m2 o m3).
   
-  Parameter id_left : forall m, concat empty m = m.
-  Parameter id_right : forall m, concat m empty = m.
+  Parameter id_l : forall m, null o m = m.
+  Parameter id_r : forall m, m o null = m.
 
   (* The Axiom of Commutativity *)
-  Parameter commut : forall m1 m2, concat m1 m2 = concat m2 m1.
+  Parameter commut : forall m1 m2, m1 o m2 = m2 o m1.
 
-  Lemma set_exchange : forall A B C D, A o B o C o D = A o C o B o D.
+  Lemma exchange : forall A B C D, A o B o C o D = A o C o B o D.
   Proof.
     intros.
     assert (H : B o C = C o B). { apply commut. }
@@ -35,29 +33,20 @@ Module Type KeyValueSet.
     repeat rewrite -> assoc. rewrite -> H'. reflexivity.
   Qed.
 
-  (* The rest of the definition is associated with access to key-value elements of each set. *)
-  
-  (* Quantifiers : Linear & Unrestricted *)
-  Inductive Q : Type :=
-    | qlin : Q
-    | qun : Q.
+End AbelianMonoid.
 
-  (* Names of the Variables *)
-  Inductive K : Type :=
-    | Id : nat -> K.
+Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : Types.ModuleType ).
 
-  (* Type and Pretype *)
-  Reserved Notation "'P'" (at level 10).
+  (* The Type *)
+  Definition T : Type := M.T.
 
-  Inductive V : Type :=
-    | ty_bool : P
-    | ty_pair : V -> V -> P
-    | ty_arrow : V -> V -> P
-
-  where "'P'" := (Q -> V).
+  Definition K : Type := KM.T.
+  Definition V : Type := VM.T.
 
   (* Constructors *)
   Parameter append : T -> K -> V -> T.
+  
+  Definition empty := M.null.
 
   Notation "'[' k v ']'" := (append empty k v) (at level 15).
 
@@ -69,6 +58,8 @@ Module Type KeyValueSet.
   Parameter decide_append_empty : forall s' k v, empty = append s' k v -> False.
 
   (* Relation between Append and Concat *)
+  Notation "s1 'o' s2" := (M.mult s1 s2) (at level 20, left associativity).
+
   Parameter append_concat : forall s1 s2 s' k v, 
       s2 = append s' k v -> 
       s1 o s2 = append (s1 o s') k v.
@@ -77,7 +68,7 @@ Module Type KeyValueSet.
       append s' k v = s' o (append empty k v).
   Proof.
     intros. erewrite -> append_concat with (s' := empty) (k := k) (v := v); try reflexivity.
-    rewrite -> id_right. reflexivity.
+    rewrite -> M.id_r. reflexivity.
   Qed.
 
   (* Membership *)
@@ -106,7 +97,19 @@ Module Type KeyValueSet.
   Lemma exchange : forall s1 s2 k v k' v',
       (append (append s1 k v) k' v') o s2 = (append (append s1 k' v') k v) o s2.
   Proof.
-    intros. repeat rewrite -> factor. apply set_exchange.
+    intros. repeat rewrite -> factor. apply M.exchange.
   Qed.
 
 End KeyValueSet.
+
+Module Test ( M : AbelianMonoid ) ( m_nat : Types.ModuleNat ) ( kvs : KeyValueSet M m_nat m_nat ).
+  Import kvs.
+  
+  Definition test_set : kvs.T := append (append empty 1 2) 2 3.
+
+  Example test_set_contains : contains test_set 1 2.
+  Proof.
+    compute. apply contains_append_set. eapply contains_append. reflexivity.
+  Qed.
+
+End Test.
