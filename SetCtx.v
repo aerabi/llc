@@ -1,5 +1,11 @@
 Require Import Types.
 
+(* This file contains the definition of an Abelian Monoid, 
+   and then, an axiomatic definition of a Key-Value Set, as an Abelian Monoid, with more
+   axioms and properties.
+   The Key-Value Set uses generic types for its keys and values, so in order to use it,
+   you must plug-in the module types of type ModuleType (see Types.v). *)
+
 Module Type AbelianMonoid.
 
   (* Type of Abelian Monoid *)
