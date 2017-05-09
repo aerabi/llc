@@ -70,7 +70,17 @@ Inductive semev : T -> tm -> T -> tm -> Prop :=
     semev S (tmif (tmvar x) t1 t2) (scer Q S x) t1
   | E_If_F : forall S x Q t1 t2,
     sval S x (pvbool bfalse Q) ->
-    semev S (tmif (tmvar x) t1 t2) (scer Q S x) t2.
+    semev S (tmif (tmvar x) t1 t2) (scer Q S x) t2
+  | E_Pair : forall S x y z Q,
+    semev S (tmpair Q (tmvar y) (tmvar z)) (append S x (pvpair y z Q)) (tmvar x)
+  | E_Split : forall S x y y1 z z1 Q t,
+    sval S x (pvpair y1 z1 Q) ->
+    semev S (tmsplit (tmvar x) y z t) (scer Q S x) (rp (rp t y y1) z z1)
+  | E_Fun : forall S x y t ti Q,
+    semev S (tmabs Q y ti t) (append S x (pvabs y ti t Q)) (tmvar x)
+  | E_App : forall S x1 x2 y t ti Q,
+    sval S x1 (pvabs y ti t Q) ->
+    semev S (tmapp (tmvar x1) (tmvar x2)) (scer Q S x1) (rp t y x2).
 
 (* Top-Level Evaluation *)
 Inductive tlsemev : T -> tm -> T -> tm -> Prop :=
@@ -105,7 +115,8 @@ Lemma preservation : forall S t S' t',
   tlsemev S t S' t' ->
   prty S' t'.
 Proof.
-
+  intros S t S' t' H H'. inversion H'. eapply T_Prog.
+  apply H0. generalize dependent S'.
 Qed.
 
 
