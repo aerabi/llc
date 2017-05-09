@@ -32,7 +32,7 @@ Notation "'Ø'" := (empty).
 Notation "G '∷' x T" := (append G x T) (at level 29, left associativity).
 Notation "G1 '∪' G2" := (M.mult G1 G2) (at level 40, left associativity).
 
-(* Context Split *)
+(* Context Split (see Figure 1-4) *)
 Parameter split : T -> T -> T.
 
 Notation "G1 '⊔' G2" := (split G1 G2) (at level 20, left associativity).
@@ -48,7 +48,7 @@ Parameter split_lin_r : forall G1 G2 x P,
 Notation "'ctx'" := T.
 
 (* Relations between Quantifiers and Types *)
-Reserved Notation "Q1 '<<' Q2" (at level 70).
+Reserved Notation "Q1 '<<' Q2" (at level 70).  (* Q1 ⊑ Q2 *)
 
 Inductive q_rel : q -> q -> Prop :=
   | Q_Ref : forall Q, Q << Q
@@ -62,10 +62,10 @@ Proof.
   try inversion H; try inversion H'; try apply Q_Ref; try apply Q_Axiom.
 Qed.
 
-Inductive q_rel' : q -> ty -> Prop :=
+Inductive q_rel' : q -> ty -> Prop :=  (* q(T) *)
   | Q_Rel_Type : forall Q Q' P, Q << Q' -> q_rel' Q (P Q').
 
-Reserved Notation "Q '〔' G '〕'" (at level 30).
+Reserved Notation "Q '〔' G '〕'" (at level 30).  (* q(Γ) *)
 
 Inductive q_rel'' : q -> ctx -> Prop :=
   | Q_Rel_Ctx_Empty : forall Q, Q 〔empty〕
@@ -86,9 +86,9 @@ Lemma q_rel''_concat_ctx' : forall G1 G2 Q,
   Q 〔G1 ∪ G2〕 -> Q 〔G1〕 /\ Q 〔G2〕.
 Proof. Admitted.
 
-Reserved Notation "G '|-' t '|' T" (at level 60).
+(* Declarative Typing [Figure 1-5] *)
+Reserved Notation "G '|-' t '|' T" (at level 60).  (* G ⊢ t : T *)
 
-(* Declarative Typing *)
 Inductive ctx_ty : ctx -> tm -> ty -> Prop :=
   | T_Var : forall G1 G2 x T,
       qun 〔G1 ∪ G2〕 ->
