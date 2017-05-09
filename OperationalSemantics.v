@@ -1,141 +1,123 @@
+Require Import Types.
+Require Import Basics.
 Require Import SetCtx.
 Require Import DeclarativeTyping.
 
-Module OperationalSemantics 
-    ( kvs : SetCtx.KeyValueSet ) 
-    ( dt : DeclarativeTyping.DeclarativeTyping ).
+Module Type ModuleVal <: ModuleType.
 
-(* Quantifiers : Linear & Unrestricted *)
-Definition q : Type := kvs.Q.
-Definition qun := kvs.qun.
-Definition qlin := kvs.qlin.
+  Definition T := v.
 
-(* Boolean Literal : True & False *)
-Inductive b : Type :=
-  | btrue : b
-  | bfalse : b.
+End ModuleVal.
 
-(* Type and Pretype *)
-Definition ty : Type := kvs.V.
-Definition ty_bool := kvs.ty_bool.
-Definition ty_pair := kvs.ty_pair.
-Definition ty_arrow := kvs.ty_arrow.
-Definition qty : Type := (q -> ty).
-
-Notation "T ** T'" := (ty_pair T T') (at level 20, left associativity).
-
-Notation "T --> T'" := (ty_arrow T T') (at level 40, left associativity).
-
-(* Names of the Variables *)
-Definition id : Type := kvs.K.
-
-(* Terms *)  (* Duplicated *)
-Inductive tm : Type :=
-  | tmvar : id -> tm
-  | tmbool : q -> b -> tm
-  | tmif : tm -> tm -> tm -> tm
-  | tmpair : q -> tm -> tm -> tm
-  | tmsplit : tm -> id -> id -> tm -> tm
-  | tmabs : q -> id -> ty -> tm -> tm
-  | tmapp : tm -> tm -> tm.
-
-
-(* Term Variable Replacement *)
-Fixpoint nat_eq ( m : nat ) ( n : nat ) : bool :=
-  match m, n with
-  | O, O => true
-  | S _, O => false
-  | O, S _ => false
-  | S m', S n' => nat_eq m' n'
-  end.
-
-Definition var_eq ( x : id ) ( y : id ) : bool :=
-  match x, y with
-  | kvs.Id m, kvs.Id n => nat_eq m n
-  end.
-
-Definition rpv ( x' : id ) ( x : id ) ( y : id ) : id :=
-  if var_eq x x' then y else x'.
-
-Example rpv_test_1 : rpv (kvs.Id 0) (kvs.Id 1) (kvs.Id 2) = kvs.Id 0.
-Proof. compute. reflexivity. Qed.
-
-Example rpv_test_2 : rpv (kvs.Id 0) (kvs.Id 0) (kvs.Id 2) = kvs.Id 2.
-Proof. compute. reflexivity. Qed.
-
-Fixpoint rp ( t : tm ) ( x : id ) ( y : id ) : tm :=
-  match t with
-  | tmvar x' => tmvar (rpv x' x y)
-  | tmbool qi bi => tmbool qi bi
-  | tmif t1 t2 t3 => tmif (rp t1 x y) (rp t2 x y) (rp t3 x y)
-  | tmpair qi t1 t2 => tmpair qi (rp t1 x y) (rp t2 x y)
-  | tmsplit t1 x1 x2 t2 => tmsplit (rp t1 x y) (rpv x1 x y) (rpv x2 x y) (rp t2 x y)
-  | tmabs qi x' T t => tmabs qi (rpv x' x y) T (rp t x y)
-  | tmapp t1 t2 => tmapp (rp t1 x y) (rp t2 x y)
-  end.
-
-Example tp_test_1 : rp ( tmif ( tmvar (kvs.Id 0) ) (tmbool qlin bfalse) (tmbool qun bfalse) ) (kvs.Id 0) (kvs.Id 1) = 
-  tmif ( tmvar (kvs.Id 1) ) (tmbool qlin bfalse) (tmbool qun bfalse).
-Proof. compute. reflexivity. Qed.
-
-(* Values and PreValues *)
-Reserved Notation "'pv'" (at level 10).
-
-Inductive v : Type :=
-  | pvbool : b -> pv
-  | pvpair : id -> id -> pv
-  | pvabs : id -> ty -> tm -> pv
-
-where "'pv'" := (q -> v).
+Module OperationalSemantics
+    ( M : SetCtx.AbelianMonoid )
+    ( mid : ModuleId )
+    ( mty : ModuleTy )
+    ( mv : ModuleVal )
+    ( kvs : SetCtx.KeyValueSet M mid mv ) 
+    ( ctx : SetCtx.KeyValueSet M mid mty ) 
+    ( dt : DeclarativeTyping.DeclarativeTyping M mid mty ctx ).
 
 (* Stores *)
-Inductive store : Type :=
-  | empty_store : store
-  | update_store : store -> id -> v -> store.
-
-Axiom store_comm : forall S x v x' v',
-  update_store (update_store S x v) x' v' = update_store (update_store S x' v') x v.
-
-Axiom store_no_duplicate : forall S x v,
-  update_store (update_store S x v) x v = update_store S x v.
+Import kvs.
+Notation "'Ø'" := (empty).
+Notation "G '∷' x T" := (append G x T) (at level 29, left associativity).
+Notation "G1 '∪' G2" := (M.mult G1 G2) (at level 40, left associativity).
 
 (* Store as a Function *)
-Inductive sval : store -> id -> v -> Prop :=
-  | S_Val : forall S x v, sval (update_store S x v) x v.
-  
+Inductive sval : T -> id -> v -> Prop :=
+  | S_Val : forall S x v, sval (append S x v) x v.
 
 (* Evaluation Context *)
 Inductive ec : Type :=
   | echole : ec
   | ecif : ec -> tm -> tm -> ec
-  | ecpair1 : ec -> tm -> ec
-  | ecpair2 : id -> ec -> ec
+  | ecpair1 : q -> ec -> tm -> ec
+  | ecpair2 : q -> id -> ec -> ec
   | ecsplit : ec -> id -> id -> tm -> ec
   | ecfun : ec -> tm -> ec
   | ecarg : id -> ec -> ec.
 
-(* Small Context Evaluation Relation *)
-Fixpoint scer ( qu : q ) ( S : store ) ( x : id ) : store :=
-  match qu, S, x with
-  | qlin, update_store S' x' v', x'' => 
-    match x' = x'' with
-    | True => S'
-    end
-  | qun, S', _ => S'
-  | _, _, _ => empty_store
+Fixpoint eceval (E : ec) (t : tm) : tm :=
+  match E with
+  | echole => t
+  | ecif E' t1 t2 => tmif (eceval E' t) t1 t2
+  | ecpair1 qi E' t' => tmpair qi (eceval E' t) t'
+  | ecpair2 qi x E' => tmpair qi (tmvar x) (eceval E' t)
+  | ecsplit E' x y t' => tmsplit (eceval E' t) x y t'
+  | ecfun E' t' => tmapp (eceval E' t) t'
+  | ecarg x E' => tmapp (tmvar x) (eceval E' t)
   end.
 
-Example test_scer_1 : forall S x v, scer qlin (update_store S x v) x = S.
-Proof. intros. simpl. reflexivity. Qed.
+(* Small Context Evaluation Relation: the Tilde with quantifier on it *)
+Parameter scer : q -> T -> id -> T.
+Parameter scer_lin : forall S1 S2 x V, 
+  scer qlin ((append S1 x V) ∪ S2) x = S1 ∪ S2.
+Parameter scer_un : forall S x, scer qun S x = S.
 
-Example test_scer_2 : forall S x v x' v', 
-  scer qlin (update_store (update_store S x v) x' v') x = update_store S x' v'.
-Proof. intros. rewrite -> store_comm. simpl. reflexivity. Qed.
+Example test_scer_1 : forall S x v, scer qlin (append S x v) x = S.
+Proof.
+  intros. assert ( H : (append S x v) ∪ Ø = (append S x v) ). { apply M.id_r. }
+  rewrite <- H. rewrite <- M.id_r. apply scer_lin.
+Qed.
 
-(* Evaluation *)
-Inductive semev : store -> tm -> store -> tm : Prop :=
-  | E_Bool : forall
-      
+(* Small-Step Evaluation *)
+Inductive semev : T -> tm -> T -> tm -> Prop :=
+  | E_Bool : forall S x Q (B : b),
+    semev S (tmbool Q B) (append S x (pvbool B Q)) (tmvar x)
+  | E_If_T : forall S x Q t1 t2,
+    sval S x (pvbool btrue Q) ->
+    semev S (tmif (tmvar x) t1 t2) (scer Q S x) t1
+  | E_If_F : forall S x Q t1 t2,
+    sval S x (pvbool bfalse Q) ->
+    semev S (tmif (tmvar x) t1 t2) (scer Q S x) t2
+  | E_Pair : forall S x y z Q,
+    semev S (tmpair Q (tmvar y) (tmvar z)) (append S x (pvpair y z Q)) (tmvar x)
+  | E_Split : forall S x y y1 z z1 Q t,
+    sval S x (pvpair y1 z1 Q) ->
+    semev S (tmsplit (tmvar x) y z t) (scer Q S x) (rp (rp t y y1) z z1)
+  | E_Fun : forall S x y t ti Q,
+    semev S (tmabs Q y ti t) (append S x (pvabs y ti t Q)) (tmvar x)
+  | E_App : forall S x1 x2 y t ti Q,
+    sval S x1 (pvabs y ti t Q) ->
+    semev S (tmapp (tmvar x1) (tmvar x2)) (scer Q S x1) (rp t y x2).
+
+(* Top-Level Evaluation *)
+Inductive tlsemev : T -> tm -> T -> tm -> Prop :=
+  | E_Ctxt : forall S E t t',
+    semev S t S t' ->
+    tlsemev S (eceval E t) S (eceval E t').
+
+(* Store Typing *)
+Notation "G1 '⊔' G2" := (dt.split G1 G2) (at level 20, left associativity).
+Notation "G '|-' t '|' T" := (dt.ctx_ty G t T) (at level 60).
+
+Inductive stty : T -> ctx.T -> Prop :=
+  | T_EmptyS : stty empty ctx.empty
+  | T_NextlinS : forall S G1 G2 (w : pv) ti x,
+    stty S (G1 ⊔ G2) ->
+    G1 |- tmv (w qlin) | ti ->
+    stty (append S x (w qlin)) (ctx.append G2 x ti)
+  | T_NextunS : forall S G1 G2 (w : pv) ti x,
+    stty S (G1 ⊔ G2) ->
+    G1 |- tmv (w qun) | ti ->
+    stty (append S x (w qun)) (ctx.append G2 x ti).
+
+Inductive prty : T -> tm -> Prop :=
+  | T_Prog : forall S G t ti,
+    stty S G ->
+    G |- t | ti ->
+    prty S t.
+
+(* Lemmas *)
+Lemma preservation : forall S t S' t',
+  prty S t ->
+  tlsemev S t S' t' ->
+  prty S' t'.
+Proof.
+  intros S t S' t' H H'. inversion H'. eapply T_Prog.
+  apply H0. generalize dependent S'.
+Qed.
 
 
 End OperationalSemantics.
