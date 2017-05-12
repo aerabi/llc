@@ -33,20 +33,6 @@ Notation "G '∷' x T" := (append G x T) (at level 29, left associativity).
 Notation "G1 '∪' G2" := (M.mult G1 G2) (at level 40, left associativity).
 
 (* Context Split (see Figure 1-4) *)
-Parameter split : T -> T -> T.
-
-Notation "G1 '⊔' G2" := (split G1 G2) (at level 20, left associativity).
-
-Parameter split_empty : empty ⊔ empty = empty.
-Parameter split_un : forall G1 G2 x P, 
-  ( append G1 x (P qun) ) ⊔ ( append G2 x (P qun) ) = append (G1 ⊔ G2) x (P qun).
-Parameter split_lin_l : forall G1 G2 x P,
-  ( append G1 x (P qlin) ) ⊔ G2 = append (G1 ⊔ G2) x (P qlin).
-Parameter split_lin_r : forall G1 G2 x P,
-  G1 ⊔ ( append G2 x (P qlin) ) = append (G1 ⊔ G2) x (P qlin).
-
-Notation "'ctx'" := T.
-
 Reserved Notation "G '≜' G1 '∘' G2" (at level 80).
 
 Inductive split' : T -> T -> T -> Prop :=
@@ -59,6 +45,8 @@ Inductive split' : T -> T -> T -> Prop :=
       G ≜ G1 ∘ G2 -> (append G x (P qlin)) ≜ G1 ∘ (append G2 x (P qlin))
 
 where "G '≜' G1 '∘' G2" := (split' G G1 G2).
+
+Notation "'ctx'" := T.
 
 (* Relations between Quantifiers and Types *)
 Reserved Notation "Q1 '<<' Q2" (at level 70).  (* Q1 ⊑ Q2 *)
