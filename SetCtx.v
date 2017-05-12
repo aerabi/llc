@@ -63,6 +63,16 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
 
   Parameter decide_append_empty : forall s' k v, empty = append s' k v -> False.
 
+  Proposition decide_append_iff : forall (s : T),
+      s <> empty <->
+      exists s' k v, s = append s' k v.
+  Proof.
+    split.
+    - apply decide_append.
+    - intros. inversion H; subst. inversion H0; subst. inversion H1; subst.
+      unfold not. intros H'. eapply decide_append_empty. rewrite <- H'. reflexivity.
+  Qed.
+      
   (* Relation between Append and Concat *)
   Notation "s1 'o' s2" := (M.mult s1 s2) (at level 20, left associativity).
 
