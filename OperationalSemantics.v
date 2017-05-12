@@ -50,56 +50,56 @@ Fixpoint eceval (E : ec) (t : tm) : tm :=
   end.
 
 (* Small Context Evaluation Relation: the Tilde with quantifier on it *)
-Parameter scer : q -> T -> id -> T.
-Parameter scer_lin : forall S1 S2 x V, 
-  scer qlin ((append S1 x V) ∪ S2) x = S1 ∪ S2.
-Parameter scer_un : forall S x, scer qun S x = S.
-
-Example test_scer_1 : forall S x v, scer qlin (append S x v) x = S.
-Proof.
-  intros. assert ( H : (append S x v) ∪ Ø = (append S x v) ). { apply M.id_r. }
-  rewrite <- H. rewrite <- M.id_r. apply scer_lin.
-Qed.
+Inductive scer' : q -> T -> id -> T -> Prop :=
+  | Tilde_Lin : forall S1 S2 x V,
+      scer' qlin ((append S1 x V) ∪ S2) x (S1 ∪ S2)
+  | Tilde_Un : forall S x, scer' qun S x S.
 
 (* Small-Step Evaluation *)
 Inductive semev : T -> tm -> T -> tm -> Prop :=
   | E_Bool : forall S x Q (B : b),
     semev S (tmbool Q B) (append S x (pvbool B Q)) (tmvar x)
-  | E_If_T : forall S x Q t1 t2,
+  | E_If_T : forall S S' x Q t1 t2,
     sval S x (pvbool btrue Q) ->
-    semev S (tmif (tmvar x) t1 t2) (scer Q S x) t1
-  | E_If_F : forall S x Q t1 t2,
+    scer' Q S x S' ->
+    semev S (tmif (tmvar x) t1 t2) S' t1
+  | E_If_F : forall S S' x Q t1 t2,
     sval S x (pvbool bfalse Q) ->
-    semev S (tmif (tmvar x) t1 t2) (scer Q S x) t2
+    scer' Q S x S' ->
+    semev S (tmif (tmvar x) t1 t2) S' t2
   | E_Pair : forall S x y z Q,
     semev S (tmpair Q (tmvar y) (tmvar z)) (append S x (pvpair y z Q)) (tmvar x)
-  | E_Split : forall S x y y1 z z1 Q t,
+  | E_Split : forall S S' x y y1 z z1 Q t,
     sval S x (pvpair y1 z1 Q) ->
-    semev S (tmsplit (tmvar x) y z t) (scer Q S x) (rp (rp t y y1) z z1)
+    scer' Q S x S' ->
+    semev S (tmsplit (tmvar x) y z t) S' (rp (rp t y y1) z z1)
   | E_Fun : forall S x y t ti Q,
     semev S (tmabs Q y ti t) (append S x (pvabs y ti t Q)) (tmvar x)
-  | E_App : forall S x1 x2 y t ti Q,
+  | E_App : forall S S' x1 x2 y t ti Q,
     sval S x1 (pvabs y ti t Q) ->
-    semev S (tmapp (tmvar x1) (tmvar x2)) (scer Q S x1) (rp t y x2).
+    scer' Q S x1 S' ->
+    semev S (tmapp (tmvar x1) (tmvar x2)) S' (rp t y x2).
 
 (* Top-Level Evaluation *)
 Inductive tlsemev : T -> tm -> T -> tm -> Prop :=
-  | E_Ctxt : forall S E t t',
-    semev S t S t' ->
-    tlsemev S (eceval E t) S (eceval E t').
+  | E_Ctxt : forall S S' E t t',
+    semev S t S' t' ->
+    tlsemev S (eceval E t) S' (eceval E t').
 
 (* Store Typing *)
-Notation "G1 '⊔' G2" := (dt.split G1 G2) (at level 20, left associativity).
+Notation "G '≜' G1 '∘' G2" := (dt.split' G G1 G2) (at level 20, left associativity).
 Notation "G '|-' t '|' T" := (dt.ctx_ty G t T) (at level 60).
 
 Inductive stty : T -> ctx.T -> Prop :=
   | T_EmptyS : stty empty ctx.empty
-  | T_NextlinS : forall S G1 G2 (w : pv) ti x,
-    stty S (G1 ⊔ G2) ->
+  | T_NextlinS : forall S G G1 G2 (w : pv) ti x,
+    G ≜ G1 ∘ G2 ->
+    stty S G ->
     G1 |- tmv (w qlin) | ti ->
     stty (append S x (w qlin)) (ctx.append G2 x ti)
-  | T_NextunS : forall S G1 G2 (w : pv) ti x,
-    stty S (G1 ⊔ G2) ->
+  | T_NextunS : forall S G G1 G2 (w : pv) ti x,
+    G ≜ G1 ∘ G2 ->
+    stty S G ->
     G1 |- tmv (w qun) | ti ->
     stty (append S x (w qun)) (ctx.append G2 x ti).
 
@@ -115,8 +115,17 @@ Lemma preservation : forall S t S' t',
   tlsemev S t S' t' ->
   prty S' t'.
 Proof.
-  intros S t S' t' H H'. inversion H'. eapply T_Prog.
-  apply H0. generalize dependent S'.
+  intros S t S' t' H H'.  inversion H'. subst S0. subst S'0. generalize dependent t.
+  generalize dependent t'. generalize dependent S. generalize dependent S'.
+  generalize dependent t0. generalize dependent t'0. induction E;
+  intros tt' tt S' S Hsemev ti' HH ti Hprty Htlsemev HH'; simpl.
+  - admit.
+  - eapply T_Prog.
+  Focus 2. eapply T_Prog. inversion H. subst S0. subst t3. inversion H0.
+  intros S t S' t' H H'. inversion H; subst. inversion H'. subst S0. subst S. 
+  eapply T_Prog with (G := G); try apply H0. subst. induction E. inversion H2. inversion H0.
+  - simpl. simpl in H1. subst t0. subst t'0. subst G. subst S'. subst S.
+    rewrite -> Tcomm in H5. apply decide_append_empty in H5.
 Qed.
 
 
