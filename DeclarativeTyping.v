@@ -47,6 +47,19 @@ Parameter split_lin_r : forall G1 G2 x P,
 
 Notation "'ctx'" := T.
 
+Reserved Notation "G '≜' G1 '∘' G2" (at level 80).
+
+Inductive split' : T -> T -> T -> Prop :=
+  | M_Empty : empty ≜ empty ∘ empty
+  | M_Un : forall G G1 G2 x P,
+      G ≜ G1 ∘ G2 -> (append G x (P qun)) ≜ (append G1 x (P qun)) ∘ (append G2 x (P qun))
+  | M_Lin1 : forall G G1 G2 x P, 
+      G ≜ G1 ∘ G2 -> (append G x (P qlin)) ≜ (append G1 x (P qlin)) ∘ G2
+  | M_Lin2 : forall G G1 G2 x P,
+      G ≜ G1 ∘ G2 -> (append G x (P qlin)) ≜ G1 ∘ (append G2 x (P qlin))
+
+where "G '≜' G1 '∘' G2" := (split' G G1 G2).
+
 (* Relations between Quantifiers and Types *)
 Reserved Notation "Q1 '<<' Q2" (at level 70).  (* Q1 ⊑ Q2 *)
 
@@ -96,29 +109,33 @@ Inductive ctx_ty : ctx -> tm -> ty -> Prop :=
   | T_Bool : forall G (Q : q) (B : b),
       qun 〔G〕 ->
       G |- (tmbool Q B) | ty_bool Q
-  | T_If : forall G1 G2 t1 t2 t3 Q T,
+  | T_If : forall G G1 G2 t1 t2 t3 Q T,
       G1 |- t1 | ty_bool Q ->
       G2 |- t2 | T ->
       G2 |- t3 | T ->
-      G1 ⊔ G2 |- tmif t1 t2 t3 | T
-  | T_Pair : forall G1 G2 t1 t2 T1 T2 Q,
+      G ≜ G1 ∘ G2 ->
+      G |- tmif t1 t2 t3 | T
+  | T_Pair : forall G G1 G2 t1 t2 T1 T2 Q,
       G1 |- t1 | T1 ->
       G2 |- t2 | T2 ->
       q_rel' Q T1 ->
       q_rel' Q T2 ->
-      G1 ⊔ G2 |- tmpair Q t1 t2 | (T1 ** T2) Q
-  | T_Split : forall G1 G2 t1 t2 T1 T2 T x y Q,
+      G ≜ G1 ∘ G2 ->
+      G |- tmpair Q t1 t2 | (T1 ** T2) Q
+  | T_Split : forall G G1 G2 t1 t2 T1 T2 T x y Q,
       G1 |- t1 | (T1 ** T2) Q ->
       append (append G2 x T1) y T2 |- t2 | T ->
-      G1 ⊔ G2 |- tmsplit t1 x y t2 | T
+      G ≜ G1 ∘ G2 ->
+      G |- tmsplit t1 x y t2 | T
   | T_Abs : forall Q G t2 T1 T2 x,
       Q 〔G〕 ->
       append G x T1 |- t2 | T2 ->
       G |- tmabs Q x T1 t2 | (T1 --> T2) Q
-  | T_App : forall G1 G2 t1 t2 T11 T12 Q,
+  | T_App : forall G G1 G2 t1 t2 T11 T12 Q,
       G1 |- t1 | (T11 --> T12) Q ->
       G2 |- t2 | T11 ->
-      G1 ⊔ G2 |- tmapp t1 t2 | T12
+      G ≜ G1 ∘ G2 ->
+      G |- tmapp t1 t2 | T12
 
 where "G '|-' t '|' T" := (ctx_ty G t T).
 
@@ -144,22 +161,25 @@ Proof.
     inversion H2 as [H2l H2r]. apply q_rel''_concat_ctx; try apply H2l. apply q_rel''_concat_ctx; try apply H2r.
     eapply Q_Rel_Ctx_Update; try apply Q_Rel_Ctx_Empty. apply Q_Rel_Type. apply Q_Ref.
   - apply T_Bool. apply Q_Rel_Ctx_Update; try apply H4. apply Q_Rel_Type. apply Q_Ref.
-  - rewrite <- split_un. eapply T_If.
-    + apply IHt1 in H4. apply H4.
-    + apply IHt2 in H6. apply H6.
-    + apply IHt3 in H7. apply H7.
-  - rewrite <- split_un. apply T_Pair; try apply H7; try apply H8.
+  - eapply T_If.
     + apply IHt1 in H3. apply H3.
     + apply IHt2 in H5. apply H5.
-  - rewrite <- split_un. eapply T_Split.
+    + apply IHt3 in H7. apply H7.
+    + apply M_Un with (x := x) (P := P) in H8. apply H8.
+  - apply T_Pair with (G1 := append G1 x (P qun)) (G2 := append G2 x (P qun)); try apply H6; try apply H8.
+    + apply IHt1 in H3. apply H3.
+    + apply IHt2 in H4. apply H4.
+    + apply M_Un with (x := x) (P := P) in H9. apply H9.
+  - eapply T_Split.
     + apply IHt1 in H6. apply H6.
-    + assert ( H' : append (append (append G2 x (P qun) ) i T1) i0 T2 =
-        G2 ∪ (append empty x (P qun)) ∪ (append empty i T1) ∪ (append empty i0 T2) ).
-      { repeat rewrite <- append_to_concat. reflexivity. }
+    + assert ( H' : forall G x ti x' ti' x'' ti'', append (append (append G x ti ) x' ti') x'' ti'' =
+        G ∪ (append empty x ti) ∪ (append empty x' ti') ∪ (append empty x'' ti'') ).
+      { intros. repeat rewrite <- append_to_concat. reflexivity. }
       assert ( weak_set_exchange : forall A B C, A ∪ B ∪ C = A ∪ C ∪ B ).
       { intros. rewrite <- M.id_r. rewrite -> M.exchange. rewrite -> M.id_r. reflexivity. }
       rewrite -> H'. rewrite -> M.exchange. rewrite -> weak_set_exchange. repeat rewrite <- kvs.append_to_concat.
       apply IHt2. apply H7.
+    + apply M_Un with (x := x) (P := P) in H8. apply H8.
   - apply T_Abs.
     + rewrite -> append_to_concat. apply q_rel''_concat_ctx; try apply H6. apply Q_Rel_Ctx_Update; try apply Q_Rel_Ctx_Empty.
       apply Q_Rel_Type. destruct q; try apply Q_Axiom. apply Q_Ref.
@@ -168,9 +188,10 @@ Proof.
       assert ( weak_set_exchange : forall A B C, A ∪ B ∪ C = A ∪ C ∪ B ).
       { intros. rewrite <- M.id_r. rewrite -> M.exchange. rewrite -> M.id_r. reflexivity. }
       rewrite -> H'. rewrite -> weak_set_exchange. repeat rewrite <- append_to_concat. apply IHt. apply H7.
-  - rewrite <- split_un. eapply T_App.
-    + apply IHt1 in H3. apply H3.
-    + apply IHt2 in H5. apply H5.
+  - eapply T_App.
+    + apply IHt1 in H2. apply H2.
+    + apply IHt2 in H4. apply H4.
+    + apply M_Un with (x := x) (P := P) in H6. apply H6.
 Qed.
 
 Lemma unrestricted_contraction : forall G t x1 x2 x3 T P,
