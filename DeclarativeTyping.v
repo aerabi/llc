@@ -46,6 +46,14 @@ Inductive split' : T -> T -> T -> Prop :=
 
 where "G '≜' G1 '∘' G2" := (split' G G1 G2).
 
+Parameter unr : T -> T.
+Parameter split_id_l : forall G, G ≜ (unr G) ∘ G.
+Parameter split_id_r : forall G, G ≜ G ∘ (unr G).
+Parameter unr_members : forall G x P Q, contains (unr G) x (P Q) -> Q = qun.
+
+Lemma split_comm : forall G G1 G2, G ≜ G1 ∘ G2 -> G ≜ G2 ∘ G1.
+Proof. Admitted.
+
 Notation "'ctx'" := T.
 
 (* Relations between Quantifiers and Types *)
@@ -76,6 +84,9 @@ Inductive q_rel'' : q -> ctx -> Prop :=
       Q 〔append G x T〕
 
 where "Q '〔' G '〕'" := (q_rel'' Q G).
+
+Lemma q_rel''_unr : forall G Q, Q 〔unr G〕.
+Proof. Admitted.
 
 Lemma q_rel''_concat_ctx : forall Q G1 G2,
   Q 〔G1〕 ->

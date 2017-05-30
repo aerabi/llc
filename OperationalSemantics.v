@@ -80,11 +80,76 @@ Inductive semev : T -> tm -> T -> tm -> Prop :=
     scer' Q S x1 S' ->
     semev S (tmapp (tmvar x1) (tmvar x2)) S' (rp t y x2).
 
+Hint Constructors semev.
+
 (* Top-Level Evaluation *)
 Inductive tlsemev : T -> tm -> T -> tm -> Prop :=
   | E_Ctxt : forall S S' E t t',
     semev S t S' t' ->
     tlsemev S (eceval E t) S' (eceval E t').
+
+(* Lemmas *)
+Proposition tlsemev_semev : forall S S' t t',
+  semev S t S' t' ->
+  tlsemev S t S' t'.
+Proof.
+  intros. apply E_Ctxt with (E := echole) in H. simpl in H. apply H.
+Qed.
+
+(* Tests *)
+Example test_bool_1 :
+  semev empty (tmbool qlin btrue) (append empty (Id 0) (pvbool btrue qlin)) (tmvar (Id 0)).
+Proof. eapply E_Bool. Qed.
+
+Example test_bool_2 :
+  tlsemev empty (tmbool qlin btrue) (append empty (Id 0) (pvbool btrue qlin)) (tmvar (Id 0)).
+Proof. apply tlsemev_semev. apply test_bool_1. Qed.
+
+(* Alternative Definition : Small-Step Semantic Evaluation, SSSE *)
+Inductive ssse : T -> tm -> T -> tm -> Prop :=
+  | SSSE_Bool : forall S x Q (B : b),
+    ssse S (tmbool Q B) (append S x (pvbool B Q)) (tmvar x)
+  | SSSE_If_Eval : forall S S' x t t1 t2,
+    ssse S t S' (tmvar x) ->
+    ssse S (tmif t t1 t2) S' (tmif (tmvar x) t1 t2)
+  | SSSE_If_T : forall S S' x Q t1 t2,
+    sval S x (pvbool btrue Q) ->
+    scer' Q S x S' ->
+    ssse S (tmif (tmvar x) t1 t2) S' t1
+  | SSSE_If_F : forall S S' x Q t1 t2,
+    sval S x (pvbool bfalse Q) ->
+    scer' Q S x S' ->
+    ssse S (tmif (tmvar x) t1 t2) S' t2
+  | SSSE_Pair_Eval_Fst : forall S S' y Q t1 t2, 
+    ssse S t1 S' (tmvar y) ->
+    ssse S (tmpair Q t1 t2) S' (tmpair Q (tmvar y) t2)
+  | SSSE_Pair_Eval_Snd : forall S S' y z Q t2,
+    ssse S t2 S' (tmvar z) ->
+    ssse S (tmpair Q (tmvar y) t2) S' (tmpair Q (tmvar y) (tmvar z))
+  | SSSE_Pair : forall S x y z Q,
+    ssse S (tmpair Q (tmvar y) (tmvar z)) (append S x (pvpair y z Q)) (tmvar x)
+  | SSSE_Split_Eval : forall S S' x y z t t',
+    ssse S t S' (tmvar x) ->
+    ssse S (tmsplit t y z t') S' (tmsplit (tmvar x) y z t')
+  | SSSE_Split : forall S S' x y y1 z z1 Q t,
+    sval S x (pvpair y1 z1 Q) ->
+    scer' Q S x S' ->
+    ssse S (tmsplit (tmvar x) y z t) S' (rp (rp t y y1) z z1)
+  | SSSE_Fun : forall S x y t ti Q,
+    ssse S (tmabs Q y ti t) (append S x (pvabs y ti t Q)) (tmvar x)
+  | SSSE_App_Eval_Fun : forall S S' x1 t1 t2, 
+    ssse S t1 S' (tmvar x1) ->
+    ssse S (tmapp t1 t2) S' (tmapp (tmvar x1) t2)
+  | SSSE_App_Eval_Arg : forall S S' x1 x2 t2,
+    ssse S t2 S' (tmvar x2) ->
+    ssse S (tmapp (tmvar x1) t2) S' (tmapp (tmvar x1) (tmvar x2))
+  | SSSE_App : forall S S' x1 x2 y t ti Q,
+    sval S x1 (pvabs y ti t Q) ->
+    scer' Q S x1 S' ->
+    ssse S (tmapp (tmvar x1) (tmvar x2)) S' (rp t y x2).
+
+(* Soundness and Completeness of SSSE *)
+
 
 (* Store Typing *)
 Notation "G '≜' G1 '∘' G2" := (dt.split' G G1 G2) (at level 20, left associativity).
@@ -110,22 +175,43 @@ Inductive prty : T -> tm -> Prop :=
     prty S t.
 
 (* Lemmas *)
+Lemma progress' : forall S t,
+  prty S t -> (exists S' t', ssse S t S' t') \/ (exists x, t = tmvar x).
+Proof.
+  intros. generalize dependent S. induction t.
+  - intros. right. exists i. reflexivity.
+  - intros. left. eexists. eexists. apply SSSE_Bool.
+  - intros. inversion H. subst. inversion H1. subst.
+    assert (X : G ≜ G2 ∘ G1). { apply dt.split_comm in H10.
+Qed.
+
+Lemma progress : forall S t, 
+  prty S t -> (exists S' t', ssse S t S' t') \/ (exists vi, t = tmv vi).
+Proof.
+  intros. generalize dependent S. induction t.
+  - admit.  (* TODO *)
+  - intros. left. eexists. eexists. apply SSSE_Bool.  (* Booleans are Values, but also progress. *)
+  - left. admit.  (* TODO *)
+  - intros.  
+Qed.
+
 Lemma preservation : forall S t S' t',
   prty S t ->
-  tlsemev S t S' t' ->
+  ssse S t S' t' ->
   prty S' t'.
 Proof.
-  intros S t S' t' H H'.  inversion H'. subst S0. subst S'0. generalize dependent t.
-  generalize dependent t'. generalize dependent S. generalize dependent S'.
-  generalize dependent t0. generalize dependent t'0. induction E;
-  intros tt' tt S' S Hsemev ti' HH ti Hprty Htlsemev HH'; simpl.
-  - admit.
+  intros S t S' t' H H'. generalize dependent H. induction H'; intros HH; inversion HH; subst.
   - eapply T_Prog.
-  Focus 2. eapply T_Prog. inversion H. subst S0. subst t3. inversion H0.
-  intros S t S' t' H H'. inversion H; subst. inversion H'. subst S0. subst S. 
-  eapply T_Prog with (G := G); try apply H0. subst. induction E. inversion H2. inversion H0.
-  - simpl. simpl in H1. subst t0. subst t'0. subst G. subst S'. subst S.
-    rewrite -> Tcomm in H5. apply decide_append_empty in H5.
+    + destruct Q.
+      * eapply T_NextlinS. Focus 3. simpl. apply H0. Focus 2. apply H. apply dt.split_id_r.
+      * eapply T_NextunS. Focus 3. simpl. apply H0. Focus 2. apply H. apply dt.split_id_r.
+    + assert (X : forall G, ctx.append G x ti = M.mult (ctx.append G x ti) ctx.empty).
+      { intros. rewrite -> M.id_r. reflexivity. }
+      rewrite -> X. eapply dt.T_Var. rewrite -> M.id_r. apply dt.q_rel''_unr.
+  - inversion H0. subst. assert (X : stty S G1). { eapply stty_split. apply H9. apply H. }
+    eapply T_Prog in X. Focus 2. apply H4. apply IHH' in X. inversion X. subst.
+    eapply T_Prog. apply H1. eapply dt.T_If. Focus 2. apply H6. Focus 2. apply H8.
+    inversion H2. subst T0. subst x0.
 Qed.
 
 
