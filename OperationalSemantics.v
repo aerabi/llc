@@ -109,9 +109,9 @@ Proof. apply tlsemev_semev. apply test_bool_1. Qed.
 Inductive ssse : T -> tm -> T -> tm -> Prop :=
   | SSSE_Bool : forall S x Q (B : b),
     ssse S (tmbool Q B) (append S x (pvbool B Q)) (tmvar x)
-  | SSSE_If_Eval : forall S S' x t t1 t2,
-    ssse S t S' (tmvar x) ->
-    ssse S (tmif t t1 t2) S' (tmif (tmvar x) t1 t2)
+  | SSSE_If_Eval : forall S S' t t' t1 t2,
+    ssse S t S' t' ->
+    ssse S (tmif t t1 t2) S' (tmif t' t1 t2)
   | SSSE_If_T : forall S S' x Q t1 t2,
     sval S x (pvbool btrue Q) ->
     scer' Q S x S' ->
@@ -168,21 +168,47 @@ Inductive stty : T -> ctx.T -> Prop :=
     G1 |- tmv (w qun) | ti ->
     stty (append S x (w qun)) (ctx.append G2 x ti).
 
+Inductive stty' : T -> ctx.T -> Prop :=
+  | T_EmptyS' : stty' empty ctx.empty
+  | T_NextS' : forall S G G1 G2 ti tt x,
+    G ≜ G1 ∘ G2 ->
+    stty' S G ->
+    G1 |- tmv tt | ti ->
+    stty' (append S x tt) (ctx.append G2 x ti).
+
 Inductive prty : T -> tm -> Prop :=
   | T_Prog : forall S G t ti,
     stty S G ->
     G |- t | ti ->
     prty S t.
 
+Inductive prty' : T -> tm -> Prop :=
+  | T_Prog' : forall S G t ti,
+    stty' S G ->
+    G |- t | ti ->
+    prty' S t.
+
+Lemma subsemantic : forall S G G1 G2,
+  stty' S G ->
+  G ≜ G1 ∘ G2 ->
+  (exists S1, stty' S1 G1).
+Proof. Admitted.
+
 (* Lemmas *)
+
+
 Lemma progress' : forall S t,
-  prty S t -> (exists S' t', ssse S t S' t') \/ (exists x, t = tmvar x).
+  prty' S t -> (exists S' t', ssse S t S' t') \/ (exists x, t = tmvar x).
 Proof.
-  intros. generalize dependent S. induction t.
+  intros S t. generalize dependent S. induction t.
   - intros. right. exists i. reflexivity.
   - intros. left. eexists. eexists. apply SSSE_Bool.
-  - intros. inversion H. subst. inversion H1. subst.
-    assert (X : G ≜ G2 ∘ G1). { apply dt.split_comm in H10.
+  - intros. inversion H; subst. inversion H1; subst.
+    apply subsemantic with (G1 := G1) (G2 := G2) in H0; try apply H10. inversion H0 as [S1 HS1].
+    apply T_Prog' with (t := t1) (ti := (ty_bool Q)) in HS1; try apply H5. apply IHt1 in HS1.
+    inversion HS1.
+    + left. inversion H2 as [S1' H2']. inversion H2' as [t1' H2'']. 
+      apply SSSE_If_Eval with (t1 := t2) (t2 := t3) in H2''.
 Qed.
 
 Lemma progress : forall S t, 
