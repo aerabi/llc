@@ -87,6 +87,15 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
     rewrite -> M.id_r. reflexivity.
   Qed.
 
+  Proposition append_commut : forall s k v k' v',
+      append (append s k v) k' v' = append (append s k' v') k v.
+  Proof.
+    intros. rewrite -> append_to_concat. rewrite -> append_to_concat.
+    rewrite <- M.id_r with (m := s o (append empty k v) o (append empty k' v')).
+    rewrite -> M.exchange. rewrite -> M.id_r. repeat rewrite <- append_to_concat.
+    reflexivity.
+  Qed.
+
   (* Membership *)
   Inductive contains : T -> K -> V -> Prop :=
   | contains_append : forall s s' k v, s = append s' k v -> contains s k v
@@ -98,6 +107,15 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
     - apply decide_append_empty in H0. apply H0.
     - assert (H' : empty = append s' k0 v0). { rewrite <- H0. reflexivity. }
       apply decide_append_empty in H'. apply H'.
+  Qed.
+
+  Lemma contains_exists : forall (S S' : M.T) k v,
+    contains S k v ->
+    exists S', S = append S' k v.
+  Proof.
+    intros. induction H.
+    - exists s'. subst. reflexivity.
+    - inversion IHcontains as [s'']. subst s'. exists (append s'' k v). apply append_commut.
   Qed.
 
   (* No Duplications *)
