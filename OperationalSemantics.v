@@ -105,6 +105,61 @@ Example test_bool_2 :
   tlsemev empty (tmbool qlin btrue) (append empty (Id 0) (pvbool btrue qlin)) (tmvar (Id 0)).
 Proof. apply tlsemev_semev. apply test_bool_1. Qed.
 
+(* Store Typing *)
+Notation "G '≜' G1 '∘' G2" := (dt.split' G G1 G2) (at level 20, left associativity).
+Notation "G '|-' t '|' T" := (dt.ctx_ty G t T) (at level 60).
+
+(* Store Typing and Program Typing *)
+
+Inductive stty : T -> ctx.T -> Prop :=
+  | T_EmptyS : stty empty ctx.empty
+  | T_NextlinS : forall S G G1 G2 (w : pv) ti x,
+    G ≜ G1 ∘ G2 ->
+    stty S G ->
+    G1 |- tmv (w qlin) | ti ->
+    stty (append S x (w qlin)) (ctx.append G2 x ti)
+  | T_NextunS : forall S G G1 G2 (w : pv) ti x,
+    G ≜ G1 ∘ G2 ->
+    stty S G ->
+    G1 |- tmv (w qun) | ti ->
+    stty (append S x (w qun)) (ctx.append G2 x ti).
+
+Inductive stty' : T -> ctx.T -> Prop :=
+  | T_EmptyS' : stty' empty ctx.empty
+  | T_NextS' : forall S G G1 G2 ti tt x,
+    G ≜ G1 ∘ G2 ->
+    stty' S G ->
+    G1 |- tmv tt | ti ->
+    stty' (append S x tt) (ctx.append G2 x ti).
+
+Inductive prty : T -> tm -> Prop :=
+  | T_Prog : forall S G t ti,
+    stty S G ->
+    G |- t | ti ->
+    prty S t.
+
+Inductive prty' : T -> tm -> Prop :=
+  | T_Prog' : forall S G t ti,
+    stty' S G ->
+    G |- t | ti ->
+    prty' S t.
+
+Inductive in' : T -> id -> Prop :=
+  | S_Contains : forall S x vi,
+    contains S x vi ->
+    in' S x.
+
+Proposition prty'_in' : forall S x,
+  prty' S (tmvar x) -> in' S x.
+Proof.
+  Admitted.
+
+Lemma subsemantic : forall S G G1 G2,
+  stty' S G ->
+  G ≜ G1 ∘ G2 ->
+  (exists S1, stty' S1 G1 /\ (exists S2, S = S1 ∪ S2)).
+Proof. Admitted.
+
 (* Alternative Definition : Small-Step Semantic Evaluation, SSSE *)
 Inductive ssse : T -> tm -> T -> tm -> Prop :=
   | SSSE_Bool : forall S x Q (B : b),
@@ -148,67 +203,51 @@ Inductive ssse : T -> tm -> T -> tm -> Prop :=
     scer' Q S x1 S' ->
     ssse S (tmapp (tmvar x1) (tmvar x2)) S' (rp t y x2).
 
-(* Soundness and Completeness of SSSE *)
-
-
-(* Store Typing *)
-Notation "G '≜' G1 '∘' G2" := (dt.split' G G1 G2) (at level 20, left associativity).
-Notation "G '|-' t '|' T" := (dt.ctx_ty G t T) (at level 60).
-
-Inductive stty : T -> ctx.T -> Prop :=
-  | T_EmptyS : stty empty ctx.empty
-  | T_NextlinS : forall S G G1 G2 (w : pv) ti x,
-    G ≜ G1 ∘ G2 ->
-    stty S G ->
-    G1 |- tmv (w qlin) | ti ->
-    stty (append S x (w qlin)) (ctx.append G2 x ti)
-  | T_NextunS : forall S G G1 G2 (w : pv) ti x,
-    G ≜ G1 ∘ G2 ->
-    stty S G ->
-    G1 |- tmv (w qun) | ti ->
-    stty (append S x (w qun)) (ctx.append G2 x ti).
-
-Inductive stty' : T -> ctx.T -> Prop :=
-  | T_EmptyS' : stty' empty ctx.empty
-  | T_NextS' : forall S G G1 G2 ti tt x,
-    G ≜ G1 ∘ G2 ->
-    stty' S G ->
-    G1 |- tmv tt | ti ->
-    stty' (append S x tt) (ctx.append G2 x ti).
-
-Inductive prty : T -> tm -> Prop :=
-  | T_Prog : forall S G t ti,
-    stty S G ->
-    G |- t | ti ->
-    prty S t.
-
-Inductive prty' : T -> tm -> Prop :=
-  | T_Prog' : forall S G t ti,
-    stty' S G ->
-    G |- t | ti ->
-    prty' S t.
-
-Lemma subsemantic : forall S G G1 G2,
-  stty' S G ->
-  G ≜ G1 ∘ G2 ->
-  (exists S1, stty' S1 G1).
-Proof. Admitted.
-
 (* Lemmas *)
+Lemma ssse_weakening : forall (S S' S1 S2 : T) (t t' : tm),
+    ssse S1 t S' t' ->
+    S = S1 ∪ S2 ->
+    ssse S t (S' ∪ S2) t'.
+Proof.
+  Admitted.
 
+Proposition context_store_bool : forall S G Q x vi,
+  G |- tmvar x | ty_bool Q ->
+  contains S x vi ->
+  exists (bi : b), vi = pvbool bi Q.
+Proof.
+  Admitted.
 
 Lemma progress' : forall S t,
-  prty' S t -> (exists S' t', ssse S t S' t') \/ (exists x, t = tmvar x).
+  prty' S t -> (exists S' t', ssse S t S' t') \/ (exists x, t = tmvar x /\ in' S x).
 Proof.
   intros S t. generalize dependent S. induction t.
-  - intros. right. exists i. reflexivity.
+  - intros. right. exists i. apply prty'_in' in H. split. reflexivity. apply H.
   - intros. left. eexists. eexists. apply SSSE_Bool.
   - intros. inversion H; subst. inversion H1; subst.
     apply subsemantic with (G1 := G1) (G2 := G2) in H0; try apply H10. inversion H0 as [S1 HS1].
-    apply T_Prog' with (t := t1) (ti := (ty_bool Q)) in HS1; try apply H5. apply IHt1 in HS1.
-    inversion HS1.
+    inversion HS1 as [HS1l HS1r]. inversion HS1r as [S2 HS1r'].
+    apply T_Prog' with (t := t1) (ti := (ty_bool Q)) in HS1l; try apply H5. apply IHt1 in HS1l.
+    inversion HS1l.
     + left. inversion H2 as [S1' H2']. inversion H2' as [t1' H2'']. 
-      apply SSSE_If_Eval with (t1 := t2) (t2 := t3) in H2''.
+      eapply SSSE_If_Eval with (t1 := t2) (t2 := t3) in H2''.
+      apply ssse_weakening with (S := S) (S2 := S2) in H2''. Focus 2. apply HS1r'. 
+      exists (S1' ∪ S2). exists (tmif t1' t2 t3). apply H2''.
+    + left. inversion H2 as [x H2']. inversion H2' as [H2'l H2'r]. subst t1.
+      inversion H2'r. subst S0 x0. apply context_store_bool with (S := S1) (vi := vi) in H5.
+      Focus 2. apply H3. inversion H5 as [bi H5']. apply kvs.contains_exists in H3; auto.
+      inversion H3 as [S1' H3'].
+      assert (Hval : sval S x (pvbool bi Q)).
+      { subst S1 S. rewrite -> M.commut. rewrite -> kvs.append_to_concat. rewrite <- M.assoc.
+        rewrite <- kvs.append_to_concat. rewrite <- H5'. apply S_Val. }
+      destruct bi; destruct Q.
+      * exists (S1' ∪ S2). exists t2. eapply SSSE_If_T with (Q := qlin); try apply Hval.
+        subst S1 S. apply Tilde_Lin.
+      * exists S. exists t2. eapply SSSE_If_T with (Q := qun); try apply Hval. apply Tilde_Un.
+      * exists (S1' ∪ S2). exists t3. eapply SSSE_If_F with (Q := qlin); try apply Hval.
+        subst S1 S. apply Tilde_Lin.
+      * exists S. exists t3. eapply SSSE_If_F with (Q := qun); try apply Hval. apply Tilde_Un.
+  - intros. left.
 Qed.
 
 Lemma progress : forall S t, 
