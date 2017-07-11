@@ -175,12 +175,12 @@ Inductive ssse : T -> tm -> T -> tm -> Prop :=
     sval S x (pvbool bfalse Q) ->
     scer' Q S x S' ->
     ssse S (tmif (tmvar x) t1 t2) S' t2
-  | SSSE_Pair_Eval_Fst : forall S S' y Q t1 t2, 
-    ssse S t1 S' (tmvar y) ->
-    ssse S (tmpair Q t1 t2) S' (tmpair Q (tmvar y) t2)
-  | SSSE_Pair_Eval_Snd : forall S S' y z Q t2,
-    ssse S t2 S' (tmvar z) ->
-    ssse S (tmpair Q (tmvar y) t2) S' (tmpair Q (tmvar y) (tmvar z))
+  | SSSE_Pair_Eval_Fst : forall S S' Q t1 t1' t2, 
+    ssse S t1 S' t1' ->
+    ssse S (tmpair Q t1 t2) S' (tmpair Q t1' t2)
+  | SSSE_Pair_Eval_Snd : forall S S' y Q t2 t2',
+    ssse S t2 S' t2' ->
+    ssse S (tmpair Q (tmvar y) t2) S' (tmpair Q (tmvar y) t2')
   | SSSE_Pair : forall S x y z Q,
     ssse S (tmpair Q (tmvar y) (tmvar z)) (append S x (pvpair y z Q)) (tmvar x)
   | SSSE_Split_Eval : forall S S' x y z t t',
