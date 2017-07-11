@@ -250,11 +250,25 @@ Proof.
         subst S1 S. apply Tilde_Lin.
       * exists S. exists t3. eapply SSSE_If_F with (Q := qun); try apply Hval. apply Tilde_Un.
   - intros. left. inversion H; subst. inversion H1; subst.
+    assert (Hstty : stty' S G). { apply H0. }
     apply subsemantic with (G1 := G1) (G2 := G2) in H0; try apply H11. inversion H0 as [S1 HS1].
     inversion HS1 as [HS1l HS1r]. inversion HS1r as [S2 HS1r'].
     apply T_Prog' with (t := t1) (ti := T1) in HS1l; try apply H5. apply IHt1 in HS1l.
     inversion HS1l.
-    + 
+    + inversion H2 as [S1' H2']. inversion H2' as [t1' H2''].
+      exists (S1' ∪ S2). exists (tmpair q t1' t2). eapply SSSE_Pair_Eval_Fst.
+      apply ssse_weakening with (S := S) (S2 := S2) in H2''; try apply HS1r'. apply H2''.
+    + inversion H2 as [x H2']. inversion H2' as [H2'l H2'r]. subst t1.
+      inversion H2'r. subst S0 x0. apply dt.split_comm in H11. 
+      apply subsemantic with (G1 := G2) (G2 := G1) in Hstty; try apply H11.
+      inversion Hstty as [Sx2 HSx2]. inversion HSx2 as [HSx2l HSx2r]. 
+      inversion HSx2r as [Sx1 HSx2r']. eapply T_Prog' in HSx2l; try apply H6.
+      apply IHt2 in HSx2l. inversion HSx2l.
+      * inversion H4 as [Sx2' H4']. inversion H4' as [t2' H4'']. 
+        exists (Sx2' ∪ Sx1). exists (tmpair q (tmvar x) t2'). eapply SSSE_Pair_Eval_Snd.
+        apply ssse_weakening with (S := S) (S2 := Sx1) in H4''; try apply HSx2r'. apply H4''.
+      * inversion H4 as [y H4']. inversion H4' as [H4'l H4'r]. subst t2.
+        exists (append S (Id 0) (pvpair x y q)). exists (tmvar (Id 0)). apply SSSE_Pair.
 Qed.
 
 Lemma preservation : forall S t S' t',
