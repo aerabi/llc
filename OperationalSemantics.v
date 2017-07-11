@@ -211,6 +211,8 @@ Lemma ssse_weakening : forall (S S' S1 S2 : T) (t t' : tm),
 Proof.
   Admitted.
 
+(* TODO: relation between S and G *)
+
 Proposition context_store_bool : forall S G Q x vi,
   G |- tmvar x | ty_bool Q ->
   contains S x vi ->
@@ -247,17 +249,12 @@ Proof.
       * exists (S1' ∪ S2). exists t3. eapply SSSE_If_F with (Q := qlin); try apply Hval.
         subst S1 S. apply Tilde_Lin.
       * exists S. exists t3. eapply SSSE_If_F with (Q := qun); try apply Hval. apply Tilde_Un.
-  - intros. left.
-Qed.
-
-Lemma progress : forall S t, 
-  prty S t -> (exists S' t', ssse S t S' t') \/ (exists vi, t = tmv vi).
-Proof.
-  intros. generalize dependent S. induction t.
-  - admit.  (* TODO *)
-  - intros. left. eexists. eexists. apply SSSE_Bool.  (* Booleans are Values, but also progress. *)
-  - left. admit.  (* TODO *)
-  - intros.  
+  - intros. left. inversion H; subst. inversion H1; subst.
+    apply subsemantic with (G1 := G1) (G2 := G2) in H0; try apply H11. inversion H0 as [S1 HS1].
+    inversion HS1 as [HS1l HS1r]. inversion HS1r as [S2 HS1r'].
+    apply T_Prog' with (t := t1) (ti := T1) in HS1l; try apply H5. apply IHt1 in HS1l.
+    inversion HS1l.
+    + 
 Qed.
 
 Lemma preservation : forall S t S' t',
