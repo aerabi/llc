@@ -50,6 +50,11 @@ Definition var_eq ( x : id ) ( y : id ) : bool :=
   | Id m, Id n => nat_eq m n
   end.
 
+Lemma var_eq_to_eq : forall x y, var_eq x y = true -> x = y.
+Proof.
+  intros. admit.
+Qed.
+
 Definition rpv ( x' : id ) ( x : id ) ( y : id ) : id :=  (* [x->y]x' *)
   if var_eq x x' then y else x'.
 

@@ -1,3 +1,4 @@
+Require Import Axioms.
 Require Import Types.
 
 (* This file contains the definition of an Abelian Monoid, 
@@ -96,10 +97,10 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
     reflexivity.
   Qed.
 
-  (* Membership *)
+  (* Membership *)  (* TODO: append k v k v' *)
   Inductive contains : T -> K -> V -> Prop :=
   | contains_append : forall s s' k v, s = append s' k v -> contains s k v
-  | contains_append_set : forall s' k v k' v', contains s' k' v' -> contains (append s' k v) k' v'.
+  | contains_append_set : forall s' k v k' v', k <> k' -> contains s' k' v' -> contains (append s' k v) k' v'.
 
   Proposition empty_contains : forall k v, contains empty k v -> False.
   Proof.
@@ -118,8 +119,33 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
     - inversion IHcontains as [s'']. subst s'. exists (append s'' k v). apply append_commut.
   Qed.
 
+  Parameter decide_cross_append : forall s s' k k' v v',
+    append s k' v' = append s' k v ->
+    (k = k' /\ v = v' /\ s = s') \/ (k <> k' /\ contains s k v /\ contains s' k' v').
+
+  Lemma contains_set_append_law : forall s k v k' v',
+    contains (append s k' v') k v ->
+    (k = k' /\ v = v') \/ contains s k v.
+  Proof.
+    intros. remember H as H'. clear HeqH'. inversion H; subst.
+    - apply decide_cross_append in H0. inversion H0 as [H1 | H1].
+      + inversion H1. inversion H3. left. split; try apply H2; try apply H4.
+      + inversion H1. right. inversion H3. apply H4.
+    - remember H0 as H0'. clear HeqH0'. apply decide_cross_append in H0. inversion H0.
+      + right. inversion H3 as [H3' H3'']. inversion H3'' as [H3''' H3'''']. 
+        subst k0 v0 s'. apply H2.
+      + assert (exclusi : {(k = k' /\ v = v')} + {~(k = k' /\ v = v')}).
+        { apply principium_tertii_exclusi with (P := (k = k' /\ v = v')). }
+        admit.
+  Qed.
+
   (* No Duplications *)
   Parameter unique_append : forall s' k v, contains s' k v -> append s' k v = s'.
+
+  (* Not Needed
+  Lemma contains_unique : forall s' k v v', contains s' k v -> v <> v' -> contains (append s' k v') k v -> False.
+  Proof.
+  Admitted. *)
 
   (* Theorems *)
   Proposition factor : forall s1 s2 k v k' v',
@@ -143,7 +169,9 @@ Module Test ( M : AbelianMonoid ) ( m_nat : Types.ModuleNat ) ( kvs : KeyValueSe
 
   Example test_set_contains : contains test_set 1 2.
   Proof.
-    compute. apply contains_append_set. eapply contains_append. reflexivity.
+    compute. apply contains_append_set. 
+    - auto.
+    - eapply contains_append. reflexivity.
   Qed.
 
 End Test.

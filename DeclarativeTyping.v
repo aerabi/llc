@@ -1,4 +1,5 @@
 Require Import Types.
+Require Import Axioms.
 Require Import Basics.
 Require Import SetCtx.
 
@@ -53,6 +54,20 @@ Parameter unr_members : forall G x P Q, contains (unr G) x (P Q) -> Q = qun.
 
 Lemma split_comm : forall G G1 G2, G ≜ G1 ∘ G2 -> G ≜ G2 ∘ G1.
 Proof. Admitted.
+
+Lemma split_contains : forall G G1 G2 k v,
+    G ≜ G1 ∘ G2 ->
+    contains G2 k v ->
+    contains G k v.
+Proof.
+  intros. induction H.
+  - apply H0.
+  - assert (HH : { x = k }+{ x <> k }).
+    { apply principium_tertii_exclusi. }
+    destruct HH.
+    + subst k. admit.
+    + inversion H0. subst k0 v0.
+Admitted.
 
 Notation "'ctx'" := T.
 
