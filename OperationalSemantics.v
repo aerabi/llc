@@ -108,6 +108,7 @@ Proof. apply tlsemev_semev. apply test_bool_1. Qed.
 (* Store Typing *)
 Notation "G '≜' G1 '∘' G2" := (dt.split' G G1 G2) (at level 20, left associativity).
 Notation "G '|-' t '|' T" := (dt.ctx_ty G t T) (at level 60).
+Notation "Q '〔' G '〕'" := (dt.q_rel'' Q G) (at level 30).
 
 (* Store Typing and Program Typing *)
 
@@ -183,9 +184,9 @@ Inductive ssse : T -> tm -> T -> tm -> Prop :=
     ssse S (tmpair Q (tmvar y) t2) S' (tmpair Q (tmvar y) t2')
   | SSSE_Pair : forall S x y z Q,
     ssse S (tmpair Q (tmvar y) (tmvar z)) (append S x (pvpair y z Q)) (tmvar x)
-  | SSSE_Split_Eval : forall S S' x y z t t',
-    ssse S t S' (tmvar x) ->
-    ssse S (tmsplit t y z t') S' (tmsplit (tmvar x) y z t')
+  | SSSE_Split_Eval : forall S S' y z t t' t'',
+    ssse S t S' t' ->
+    ssse S (tmsplit t y z t'') S' (tmsplit t' y z t'')
   | SSSE_Split : forall S S' x y y1 z z1 Q t,
     sval S x (pvpair y1 z1 Q) ->
     scer' Q S x S' ->
@@ -212,6 +213,17 @@ Proof.
   Admitted.
 
 (* TODO: relation between S and G *)
+
+Proposition substitution_lemma : forall tt G G1 G2 x y Tx Ttt,
+  G ≜ G1 ∘ (ctx.append G2 y Tx) ->
+  ctx.append G1 x Tx |- tt | Ttt ->
+  qun 〔G2〕 ->
+  G |- (rp tt x y) | Ttt.
+Proof.
+  intros tt. induction tt.
+  - intros. simpl. unfold rpv. remember (var_eq x i) as varcompare. destruct varcompare. 
+    + inversion H0. subst. 
+Admitted.
 
 Proposition context_store_bool : forall S G Q x vi,
   G |- tmvar x | ty_bool Q ->
@@ -269,6 +281,15 @@ Proof.
         apply ssse_weakening with (S := S) (S2 := Sx1) in H4''; try apply HSx2r'. apply H4''.
       * inversion H4 as [y H4']. inversion H4' as [H4'l H4'r]. subst t2.
         exists (append S (Id 0) (pvpair x y q)). exists (tmvar (Id 0)). apply SSSE_Pair.
+  - intros. left. inversion H; subst. remember H0 as H0'. clear HeqH0'. inversion H1; subst.
+    apply subsemantic with (G1 := G1) (G2 := G2) in H0; try apply H10. inversion H0 as [S1 HS1].
+    inversion HS1 as [HS1l HS1r]. inversion HS1r as [S2 HS1r'].
+    apply T_Prog' with (t := t1) (ti := (T1 ** T2) Q) in HS1l; try apply H8. apply IHt1 in HS1l.
+    inversion HS1l.
+    + inversion H2 as [S1' H2']. inversion H2' as [t1' H2''].
+      exists (S1' ∪ S2). exists (tmsplit t1' i i0 t2). eapply SSSE_Split_Eval.
+      apply ssse_weakening with (S := S) (S2 := S2) in H2''; try apply HS1r'. apply H2''.
+    + inversion H2 as [x H2']. inversion H2' as [H2'l H2'r]. subst t1.
 Qed.
 
 Lemma preservation : forall S t S' t',
