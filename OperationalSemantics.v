@@ -155,6 +155,11 @@ Proposition prty'_in' : forall S x,
 Proof.
   Admitted.
 
+Lemma scer'_ex : forall S x Q,
+  in' S x ->
+  exists S', scer' Q S x S'.
+Proof. Admitted.
+
 Lemma subsemantic : forall S G G1 G2,
   stty' S G ->
   G ≜ G1 ∘ G2 ->
@@ -211,6 +216,18 @@ Lemma ssse_weakening : forall (S S' S1 S2 : T) (t t' : tm),
     ssse S t (S' ∪ S2) t'.
 Proof.
   Admitted.
+
+Lemma sval_weakening : forall S S1 S2 x T,
+  sval S1 x T ->
+  S = S1 ∪ S2 ->
+  sval S x T.
+Proof. Admitted.
+
+Lemma in'_weakening : forall S S1 S2 x,
+  in' S1 x ->
+  S = S1 ∪ S2 ->
+  in' S x.
+Proof. Admitted.
 
 (* TODO: relation between S and G *)
 
@@ -290,6 +307,15 @@ Proof.
       exists (S1' ∪ S2). exists (tmsplit t1' i i0 t2). eapply SSSE_Split_Eval.
       apply ssse_weakening with (S := S) (S2 := S2) in H2''; try apply HS1r'. apply H2''.
     + inversion H2 as [x H2']. inversion H2' as [H2'l H2'r]. subst t1.
+      inversion H8. subst x0 T0.
+      assert (Hval: exists y', exists z', sval S1 x (pvpair y' z' Q)). { admit. }
+      inversion Hval as [y' Hval']. inversion Hval' as [z' Hval''].
+      apply sval_weakening with (S := S) (S2 := S2) in Hval''; try apply HS1r'.
+      remember H2'r as H2'rr. clear HeqH2'rr. eapply in'_weakening in H2'rr; try apply HS1r'.
+      apply scer'_ex with (Q := Q) in H2'rr. inversion H2'rr as [S' H2'rr'].
+      eapply SSSE_Split in Hval''; try apply H2'rr'.
+      exists S'. exists (rp (rp t2 i y') i0 z'). apply Hval''.
+    - intros.
 Qed.
 
 Lemma preservation : forall S t S' t',
