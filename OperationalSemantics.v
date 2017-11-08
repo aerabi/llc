@@ -315,7 +315,8 @@ Proof.
       apply scer'_ex with (Q := Q) in H2'rr. inversion H2'rr as [S' H2'rr'].
       eapply SSSE_Split in Hval''; try apply H2'rr'.
       exists S'. exists (rp (rp t2 i y') i0 z'). apply Hval''.
-    - intros.
+    - admit.
+    - 
 Qed.
 
 Lemma preservation : forall S t S' t',
