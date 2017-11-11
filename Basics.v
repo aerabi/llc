@@ -84,6 +84,10 @@ Fixpoint ty_eq ( T1 : ty ) ( T2 : ty ) : bool :=
   | _, _ => false
   end.
 
+(* Pointer *)
+Inductive pnt : Type :=
+  | Pnt : nat -> pnt.
+
 (* Terms [Figure 1-3, t] *)
 Inductive tm : Type :=
   | tmvar : id -> tm                       (* [Figure 1-3, x] *)
@@ -92,7 +96,20 @@ Inductive tm : Type :=
   | tmpair : q -> tm -> tm -> tm           (* [Figure 1-3, q <t, t>] *)
   | tmsplit : tm -> id -> id -> tm -> tm   (* [Figure 1-3, split t as x, y in t] *)
   | tmabs : q -> id -> ty -> tm -> tm      (* [Figure 1-3, q λx:T.t] *)
-  | tmapp : tm -> tm -> tm.                (* [Figure 1-3, t t] *)
+  | tmapp : tm -> tm -> tm                 (* [Figure 1-3, t t] *)
+  | tmpointer : pnt -> tm.
+
+Inductive tmval : Type :=
+  | valbool : q -> b -> tmval
+  | valpair : q -> pnt -> pnt -> tmval
+  | valabs  : q -> id -> ty -> tm -> tmval.
+
+Definition tmval_to_tm ( v : tmval ) : tm :=
+  match v with
+  | valbool qi bi => tmbool qi bi
+  | valpair qi pt pt' => tmpair qi (tmpointer pt) (tmpointer pt')
+  | valabs qi x T t => tmabs qi x T t
+  end.
 
 Fixpoint tm_eq ( t1 : tm ) ( t2 : tm ) : bool :=
   match t1, t2 with
@@ -107,6 +124,7 @@ Fixpoint tm_eq ( t1 : tm ) ( t2 : tm ) : bool :=
   | tmabs Q x T t, tmabs Q' x' T' t' =>
     andb (andb (q_eq Q Q') (ty_eq T T')) (andb (var_eq x x') (tm_eq t t'))
   | tmapp t1 t2, tmapp t'1 t'2 => andb (tm_eq t1 t'1) (tm_eq t2 t'2)
+  | tmpointer (Pnt n1), tmpointer (Pnt n2) => nat_eq n1 n2
   | _, _ => false
   end.
 
@@ -134,6 +152,22 @@ Fixpoint rp ( t : tm ) ( x : id ) ( y : id ) : tm :=  (* [x->y]t *)
   | tmsplit t1 x1 x2 t2 => tmsplit (rp t1 x y) (rpv x1 x y) (rpv x2 x y) (rp t2 x y)
   | tmabs qi x' T t => tmabs qi (rpv x' x y) T (rp t x y)
   | tmapp t1 t2 => tmapp (rp t1 x y) (rp t2 x y)
+  | _ => t
+  end.
+
+(* Replace Variable by Pointer *)
+Fixpoint rpp ( t : tm ) ( x : id ) ( y : pnt ) : tm :=  (* [x->y]t *)
+  match t with
+  | tmvar x' => if var_eq x x' then tmpointer y else t
+  | tmif t1 t2 t3 => tmif (rpp t1 x y) (rpp t2 x y) (rpp t3 x y)
+  | tmpair qi t1 t2 => tmpair qi (rpp t1 x y) (rpp t2 x y)
+  | tmsplit t1 x1 x2 t2 => 
+      if orb (var_eq x x1) (var_eq x x2)
+        then tmsplit (rpp t1 x y) x1 x2 t2
+        else tmsplit (rpp t1 x y) x1 x2 (rpp t2 x y)
+  | tmabs qi x' T t' => if var_eq x x' then t else tmabs qi x' T (rpp t' x y)
+  | tmapp t1 t2 => tmapp (rpp t1 x y) (rpp t2 x y)
+  | _ => t
   end.
 
 (* Term Replacement *)
