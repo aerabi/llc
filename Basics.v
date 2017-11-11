@@ -99,18 +99,6 @@ Inductive tm : Type :=
   | tmapp : tm -> tm -> tm                 (* [Figure 1-3, t t] *)
   | tmpointer : pnt -> tm.
 
-Inductive tmval : Type :=
-  | valbool : q -> b -> tmval
-  | valpair : q -> pnt -> pnt -> tmval
-  | valabs  : q -> id -> ty -> tm -> tmval.
-
-Definition tmval_to_tm ( v : tmval ) : tm :=
-  match v with
-  | valbool qi bi => tmbool qi bi
-  | valpair qi pt pt' => tmpair qi (tmpointer pt) (tmpointer pt')
-  | valabs qi x T t => tmabs qi x T t
-  end.
-
 Fixpoint tm_eq ( t1 : tm ) ( t2 : tm ) : bool :=
   match t1, t2 with
   | tmvar x, tmvar y => var_eq x y
@@ -226,7 +214,7 @@ Reserved Notation "'pv'" (at level 10).  (* [Figure 1-7, w] *)
 
 Inductive v : Type :=  (* [Figure 1-7, v] *)
   | pvbool : b -> pv              (* [Figure 1-7, b] *)
-  | pvpair : id -> id -> pv       (* [Figure 1-7, <x, y>] *)
+  | pvpair : pnt -> pnt -> pv     (* [Figure 1-7, <x, y>] *)
   | pvabs : id -> ty -> tm -> pv  (* [Figure 1-7, λx:T.t] *)
 
 where "'pv'" := (q -> v).
@@ -234,6 +222,6 @@ where "'pv'" := (q -> v).
 Fixpoint tmv (t : v) : tm :=
   match t with
   | pvbool bi qi => tmbool qi bi
-  | pvpair x y qi => tmpair qi (tmvar x) (tmvar y)
+  | pvpair x y qi => tmpair qi (tmpointer x) (tmpointer y)
   | pvabs x ti t' qi => tmabs qi x ti t'
   end.
