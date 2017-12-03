@@ -96,7 +96,7 @@ Inductive tm : Type :=
   | tmpair : q -> tm -> tm -> tm           (* [Figure 1-3, q <t, t>] *)
   | tmsplit : tm -> id -> id -> tm -> tm   (* [Figure 1-3, split t as x, y in t] *)
   | tmabs : q -> id -> ty -> tm -> tm      (* [Figure 1-3, q λx:T.t] *)
-  | tmapp : tm -> tm -> tm.                 (* [Figure 1-3, t t] *)
+  | tmapp : tm -> tm -> tm.                (* [Figure 1-3, t t] *)
 
 Fixpoint tm_eq ( t1 : tm ) ( t2 : tm ) : bool :=
   match t1, t2 with
@@ -125,39 +125,7 @@ Example tm_eq_test_2 : forall x y g,
 Proof. intros. rewrite -> H. rewrite -> H0. rewrite -> H1. 
   simpl. reflexivity. Qed.
 
-(* Term Variable Replacement *)
-Definition rpv ( x' : id ) ( x : id ) ( y : id ) : id :=  (* [x->y]x' *)
-  if var_eq x x' then y else x'.
-
-Lemma rpv_equal : forall x y, rpv x x y = y.
-Proof.
-  Admitted.
-
-Lemma rpv_true : forall x' x y, var_eq x' x = true -> rpv x' x y = y.
-Proof.
-  Admitted.
-
-Lemma rpv_false : forall x' x y, var_eq x' x = false -> rpv x' x y = x'.
-Proof.
-  Admitted.
-
-Lemma rpv_reflexive : forall x y, rpv y x y = y.
-Proof.
-  Admitted.
-
-Fixpoint rp ( t : tm ) ( x : id ) ( y : id ) : tm :=  (* [x->y]t *)
-  match t with
-  | tmvar x' => tmvar (rpv x' x y)
-  | tmbool qi bi => tmbool qi bi
-  | tmif t1 t2 t3 => tmif (rp t1 x y) (rp t2 x y) (rp t3 x y)
-  | tmpair qi t1 t2 => tmpair qi (rp t1 x y) (rp t2 x y)
-  | tmsplit t1 x1 x2 t2 => tmsplit (rp t1 x y) (rpv x1 x y) (rpv x2 x y) (rp t2 x y)
-  | tmabs qi x' T t => tmabs qi (rpv x' x y) T (rp t x y)
-  | tmapp t1 t2 => tmapp (rp t1 x y) (rp t2 x y)
-  end.
-
-(* Variable Id Substitution, TODO nested *)
-
+(* Variable Id Substitution *)
 Fixpoint rpi ( t : tm ) ( x : id ) ( y : id ) : tm :=  (* [x->y]t *)
   match t with
   | tmvar x' => if var_eq x x' then tmvar y else t
@@ -172,63 +140,12 @@ Fixpoint rpi ( t : tm ) ( x : id ) ( y : id ) : tm :=  (* [x->y]t *)
   | _ => t
   end.
 
-(* Term Replacement *)
-Definition tmp : id := Id 999.
-
-Fixpoint rpt ( t : tm ) ( x : tm ) ( y : tm ) : tm :=
-  if tm_eq t x then y else
-  match t with
-  | tmif t1 t2 t3 => tmif (rpt t1 x y) (rpt t2 x y) (rpt t3 x y)
-  | tmpair qi t1 t2 => tmpair qi (rpt t1 x y) (rpt t2 x y)
-  | tmsplit t1 x1 x2 t2 => tmsplit (rpt t1 x y) x1 x2 (rpt t2 x y)
-  | tmabs qi x' T t => tmabs qi x' T (rp (rpt t (rp x x' tmp) y) tmp x')
-  | tmapp t1 t2 => tmapp (rpt t1 x y) (rpt t2 x y)
-  | _ => t
-  end.
-
-Example rpt_test_1 : forall x y X Y f qi T,
-  x = Id 0 ->
-  X = tmvar x ->
-  y = Id 1 ->
-  Y = tmvar y ->
-  f = tmabs qi x T (tmvar x) ->
-  rpt f X Y = f.
-Proof.
-  intros x y X Y f qi T Hx HX Hy HY Hf.
-  rewrite -> Hf.
-  rewrite -> HX.
-  rewrite -> HY.
-  rewrite -> Hx.
-  rewrite -> Hy.
-  simpl. compute. reflexivity.
-Qed.
-
-Example rpt_test_2 : forall x y X Y f qi T,
-  x = Id 0 ->
-  X = tmvar x ->
-  y = Id 1 ->
-  Y = tmvar y ->
-  f = tmabs qi x T (tmabs qi y T (tmpair qi X Y)) ->
-  rpt f (tmpair qi X Y) (tmpair qi Y X) = f.
-Proof.
-  intros x y X Y f qi T Hx HX Hy HY Hf.
-  rewrite -> Hf.
-  rewrite -> HX.
-  rewrite -> HY.
-  rewrite -> Hx.
-  rewrite -> Hy.
-  simpl.
-  assert (H : andb (q_eq qi qi) false = false).
-  { destruct qi; simpl; reflexivity. }
-  rewrite -> H. simpl. compute. reflexivity.
-Qed.
-
 (* Values and PreValues *)
 Reserved Notation "'pv'" (at level 10).  (* [Figure 1-7, w] *)
 
-Inductive v : Type :=  (* [Figure 1-7, v] *)
+Inductive v : Type :=             (* [Figure 1-7, v] *)
   | pvbool : b -> pv              (* [Figure 1-7, b] *)
-  | pvpair : id -> id -> pv     (* [Figure 1-7, <x, y>] *)
+  | pvpair : id -> id -> pv       (* [Figure 1-7, <x, y>] *)
   | pvabs : id -> ty -> tm -> pv  (* [Figure 1-7, λx:T.t] *)
 
 where "'pv'" := (q -> v).
