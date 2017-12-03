@@ -212,20 +212,6 @@ Lemma unrestricted_contraction : forall G t x1 x2 x3 T P,
   append (append G x2 (P qun) ) x3 (P qun) |- t | T ->
   append G x1 (P qun) |- rpi (rpi t x2 x1) x3 x1 | T.
 Proof.
-  intros G t x1 x2 x3 T' P. induction t.
-  - intros. simpl.
-    assert ( Hi_x2 : { var_eq i x2 = true }+{ ~ (var_eq i x2 = true) } ).
-    { apply principium_tertii_exclusi. }
-    inversion Hi_x2.
-    + assert ( H' : i = x2 ). { apply var_eq_to_eq. apply H0. }
-      eapply rpv_true in H0. rewrite -> H0. rewrite -> rpv_reflexive.
-      rewrite -> H' in H. inversion H. subst x T0. 
-      assert ( H'' : T' = P qun ). { admit. }
-      rewrite <- H''. rewrite <- M.id_r with ( m := append G x1 T' ).
-      eapply T_Var. rewrite -> M.id_r. 
-      assert ( H''' : append G x3 T' = G1 ∪ G2 ). { admit. }
-      rewrite <- H''' in H3. inversion H3. apply decide_append_empty in H5.
-      inversion H5. 
 Admitted.
 
 End DeclarativeTyping.
