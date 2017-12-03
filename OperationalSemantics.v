@@ -9,6 +9,18 @@ Module Type ModuleVal <: ModuleType.
 
 End ModuleVal.
 
+Module Type ModuleTMVal <: ModuleType.
+
+  Definition T := tmval.
+
+End ModuleTMVal.
+
+Module Type ModulePointer <: ModuleType.
+
+  Definition T := pnt.
+
+End ModulePointer.
+
 Module OperationalSemantics
     ( M : SetCtx.AbelianMonoid )
     ( mid : ModuleId )
@@ -169,6 +181,7 @@ Proof. Admitted.
 (* Alternative Definition : Small-Step Semantic Evaluation, SSSE *)
 Inductive ssse : T -> tm -> T -> tm -> Prop :=
   | SSSE_Bool : forall S x Q (B : b),
+    ~ (in' S x) ->  (* x : pnt, S' = S.alloc *)
     ssse S (tmbool Q B) (append S x (pvbool B Q)) (tmvar x)
   | SSSE_If_Eval : forall S S' t t' t1 t2,
     ssse S t S' t' ->
@@ -188,6 +201,7 @@ Inductive ssse : T -> tm -> T -> tm -> Prop :=
     ssse S t2 S' t2' ->
     ssse S (tmpair Q (tmvar y) t2) S' (tmpair Q (tmvar y) t2')
   | SSSE_Pair : forall S x y z Q,
+    (* TODO alloc *)
     ssse S (tmpair Q (tmvar y) (tmvar z)) (append S x (pvpair y z Q)) (tmvar x)
   | SSSE_Split_Eval : forall S S' y z t t' t'',
     ssse S t S' t' ->
@@ -197,6 +211,7 @@ Inductive ssse : T -> tm -> T -> tm -> Prop :=
     scer' Q S x S' ->
     ssse S (tmsplit (tmvar x) y z t) S' (rp (rp t y y1) z z1)
   | SSSE_Fun : forall S x y t ti Q,
+    (* alloc *)
     ssse S (tmabs Q y ti t) (append S x (pvabs y ti t Q)) (tmvar x)
   | SSSE_App_Eval_Fun : forall S S' x1 t1 t2, 
     ssse S t1 S' (tmvar x1) ->
