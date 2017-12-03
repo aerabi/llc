@@ -30,7 +30,8 @@ Proof. simpl. reflexivity. Qed.
 
 (* Names of the Variables, [See Figure 1-3, x] *)
 Inductive id : Type :=
-  | Id : nat -> id.
+  | Id : nat -> id
+  | Pt : nat -> id.
 
 Fixpoint nat_eq ( m : nat ) ( n : nat ) : bool :=
   match m, n with
@@ -52,13 +53,16 @@ Qed.
 Definition var_eq ( x : id ) ( y : id ) : bool :=
   match x, y with
   | Id m, Id n => nat_eq m n
+  | Pt m, Pt n => nat_eq m n
+  | _, _ => false
   end.
 
 Lemma var_eq_to_eq : forall x y, var_eq x y = true -> x = y.
 Proof.
   intros. destruct x. destruct y. inversion H. apply nat_eq_to_eq in H1.
   rewrite -> H1. reflexivity.
-Qed.
+Admitted.
+
 
 (* Type and Pretype *)
 Reserved Notation "'qty'" (at level 10).  (* [Figure 1-3, P] *)
@@ -84,10 +88,6 @@ Fixpoint ty_eq ( T1 : ty ) ( T2 : ty ) : bool :=
   | _, _ => false
   end.
 
-(* Pointer *)
-Inductive pnt : Type :=
-  | Pnt : nat -> pnt.
-
 (* Terms [Figure 1-3, t] *)
 Inductive tm : Type :=
   | tmvar : id -> tm                       (* [Figure 1-3, x] *)
@@ -96,8 +96,7 @@ Inductive tm : Type :=
   | tmpair : q -> tm -> tm -> tm           (* [Figure 1-3, q <t, t>] *)
   | tmsplit : tm -> id -> id -> tm -> tm   (* [Figure 1-3, split t as x, y in t] *)
   | tmabs : q -> id -> ty -> tm -> tm      (* [Figure 1-3, q λx:T.t] *)
-  | tmapp : tm -> tm -> tm                 (* [Figure 1-3, t t] *)
-  | tmpointer : pnt -> tm.
+  | tmapp : tm -> tm -> tm.                 (* [Figure 1-3, t t] *)
 
 Fixpoint tm_eq ( t1 : tm ) ( t2 : tm ) : bool :=
   match t1, t2 with
@@ -112,7 +111,6 @@ Fixpoint tm_eq ( t1 : tm ) ( t2 : tm ) : bool :=
   | tmabs Q x T t, tmabs Q' x' T' t' =>
     andb (andb (q_eq Q Q') (ty_eq T T')) (andb (var_eq x x') (tm_eq t t'))
   | tmapp t1 t2, tmapp t'1 t'2 => andb (tm_eq t1 t'1) (tm_eq t2 t'2)
-  | tmpointer (Pnt n1), tmpointer (Pnt n2) => nat_eq n1 n2
   | _, _ => false
   end.
 
@@ -131,6 +129,22 @@ Proof. intros. rewrite -> H. rewrite -> H0. rewrite -> H1.
 Definition rpv ( x' : id ) ( x : id ) ( y : id ) : id :=  (* [x->y]x' *)
   if var_eq x x' then y else x'.
 
+Lemma rpv_equal : forall x y, rpv x x y = y.
+Proof.
+  Admitted.
+
+Lemma rpv_true : forall x' x y, var_eq x' x = true -> rpv x' x y = y.
+Proof.
+  Admitted.
+
+Lemma rpv_false : forall x' x y, var_eq x' x = false -> rpv x' x y = x'.
+Proof.
+  Admitted.
+
+Lemma rpv_reflexive : forall x y, rpv y x y = y.
+Proof.
+  Admitted.
+
 Fixpoint rp ( t : tm ) ( x : id ) ( y : id ) : tm :=  (* [x->y]t *)
   match t with
   | tmvar x' => tmvar (rpv x' x y)
@@ -140,21 +154,21 @@ Fixpoint rp ( t : tm ) ( x : id ) ( y : id ) : tm :=  (* [x->y]t *)
   | tmsplit t1 x1 x2 t2 => tmsplit (rp t1 x y) (rpv x1 x y) (rpv x2 x y) (rp t2 x y)
   | tmabs qi x' T t => tmabs qi (rpv x' x y) T (rp t x y)
   | tmapp t1 t2 => tmapp (rp t1 x y) (rp t2 x y)
-  | _ => t
   end.
 
-(* Replace Variable by Pointer *)
-Fixpoint rpp ( t : tm ) ( x : id ) ( y : pnt ) : tm :=  (* [x->y]t *)
+(* Variable Id Substitution, TODO nested *)
+
+Fixpoint rpi ( t : tm ) ( x : id ) ( y : id ) : tm :=  (* [x->y]t *)
   match t with
-  | tmvar x' => if var_eq x x' then tmpointer y else t
-  | tmif t1 t2 t3 => tmif (rpp t1 x y) (rpp t2 x y) (rpp t3 x y)
-  | tmpair qi t1 t2 => tmpair qi (rpp t1 x y) (rpp t2 x y)
+  | tmvar x' => if var_eq x x' then tmvar y else t
+  | tmif t1 t2 t3 => tmif (rpi t1 x y) (rpi t2 x y) (rpi t3 x y)
+  | tmpair qi t1 t2 => tmpair qi (rpi t1 x y) (rpi t2 x y)
   | tmsplit t1 x1 x2 t2 => 
       if orb (var_eq x x1) (var_eq x x2)
-        then tmsplit (rpp t1 x y) x1 x2 t2
-        else tmsplit (rpp t1 x y) x1 x2 (rpp t2 x y)
-  | tmabs qi x' T t' => if var_eq x x' then t else tmabs qi x' T (rpp t' x y)
-  | tmapp t1 t2 => tmapp (rpp t1 x y) (rpp t2 x y)
+        then tmsplit (rpi t1 x y) x1 x2 t2
+        else tmsplit (rpi t1 x y) x1 x2 (rpi t2 x y)
+  | tmabs qi x' T t' => if var_eq x x' then t else tmabs qi x' T (rpi t' x y)
+  | tmapp t1 t2 => tmapp (rpi t1 x y) (rpi t2 x y)
   | _ => t
   end.
 
@@ -214,7 +228,7 @@ Reserved Notation "'pv'" (at level 10).  (* [Figure 1-7, w] *)
 
 Inductive v : Type :=  (* [Figure 1-7, v] *)
   | pvbool : b -> pv              (* [Figure 1-7, b] *)
-  | pvpair : pnt -> pnt -> pv     (* [Figure 1-7, <x, y>] *)
+  | pvpair : id -> id -> pv     (* [Figure 1-7, <x, y>] *)
   | pvabs : id -> ty -> tm -> pv  (* [Figure 1-7, λx:T.t] *)
 
 where "'pv'" := (q -> v).
@@ -222,6 +236,6 @@ where "'pv'" := (q -> v).
 Fixpoint tmv (t : v) : tm :=
   match t with
   | pvbool bi qi => tmbool qi bi
-  | pvpair x y qi => tmpair qi (tmpointer x) (tmpointer y)
+  | pvpair x y qi => tmpair qi (tmvar x) (tmvar y)
   | pvabs x ti t' qi => tmabs qi x ti t'
   end.
