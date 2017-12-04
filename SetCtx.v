@@ -57,6 +57,8 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
 
   Notation "'[' k v ']'" := (append empty k v) (at level 15).
 
+  Parameter alloc : T -> K.
+
   (* Decision *)  
   Parameter decide_append : forall (s : T), 
       s <> empty -> 
@@ -142,10 +144,10 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
   (* No Duplications *)
   Parameter unique_append : forall s' k v, contains s' k v -> append s' k v = s'.
 
-  (* Not Needed
-  Lemma contains_unique : forall s' k v v', contains s' k v -> v <> v' -> contains (append s' k v') k v -> False.
+  Lemma contains_unique : forall s' k v v', 
+      contains s' k v -> contains s' k v' -> v = v'.
   Proof.
-  Admitted. *)
+  Admitted.
 
   (* Theorems *)
   Proposition factor : forall s1 s2 k v k' v',
