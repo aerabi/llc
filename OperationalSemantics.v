@@ -9,18 +9,6 @@ Module Type ModuleVal <: ModuleType.
 
 End ModuleVal.
 
-Module Type ModuleTMVal <: ModuleType.
-
-  Definition T := tmval.
-
-End ModuleTMVal.
-
-Module Type ModulePointer <: ModuleType.
-
-  Definition T := pnt.
-
-End ModulePointer.
-
 Module OperationalSemantics
     ( M : SetCtx.AbelianMonoid )
     ( mid : ModuleId )
@@ -84,13 +72,13 @@ Inductive semev : T -> tm -> T -> tm -> Prop :=
   | E_Split : forall S S' x y y1 z z1 Q t,
     sval S x (pvpair y1 z1 Q) ->
     scer' Q S x S' ->
-    semev S (tmsplit (tmvar x) y z t) S' (rp (rp t y y1) z z1)
+    semev S (tmsplit (tmvar x) y z t) S' (rpi (rpi t y y1) z z1)
   | E_Fun : forall S x y t ti Q,
     semev S (tmabs Q y ti t) (append S x (pvabs y ti t Q)) (tmvar x)
   | E_App : forall S S' x1 x2 y t ti Q,
     sval S x1 (pvabs y ti t Q) ->
     scer' Q S x1 S' ->
-    semev S (tmapp (tmvar x1) (tmvar x2)) S' (rp t y x2).
+    semev S (tmapp (tmvar x1) (tmvar x2)) S' (rpi t y x2).
 
 Hint Constructors semev.
 
@@ -181,7 +169,7 @@ Proof. Admitted.
 (* Alternative Definition : Small-Step Semantic Evaluation, SSSE *)
 Inductive ssse : T -> tm -> T -> tm -> Prop :=
   | SSSE_Bool : forall S x Q (B : b),
-    ~ (in' S x) ->  (* x : pnt, S' = S.alloc *)
+    x = alloc S ->  (* x : pointer *)
     ssse S (tmbool Q B) (append S x (pvbool B Q)) (tmvar x)
   | SSSE_If_Eval : forall S S' t t' t1 t2,
     ssse S t S' t' ->
@@ -201,7 +189,7 @@ Inductive ssse : T -> tm -> T -> tm -> Prop :=
     ssse S t2 S' t2' ->
     ssse S (tmpair Q (tmvar y) t2) S' (tmpair Q (tmvar y) t2')
   | SSSE_Pair : forall S x y z Q,
-    (* TODO alloc *)
+    x = alloc S ->
     ssse S (tmpair Q (tmvar y) (tmvar z)) (append S x (pvpair y z Q)) (tmvar x)
   | SSSE_Split_Eval : forall S S' y z t t' t'',
     ssse S t S' t' ->
@@ -209,9 +197,9 @@ Inductive ssse : T -> tm -> T -> tm -> Prop :=
   | SSSE_Split : forall S S' x y y1 z z1 Q t,
     sval S x (pvpair y1 z1 Q) ->
     scer' Q S x S' ->
-    ssse S (tmsplit (tmvar x) y z t) S' (rp (rp t y y1) z z1)
+    ssse S (tmsplit (tmvar x) y z t) S' (rpi (rpi t y y1) z z1)
   | SSSE_Fun : forall S x y t ti Q,
-    (* alloc *)
+    x = alloc S ->
     ssse S (tmabs Q y ti t) (append S x (pvabs y ti t Q)) (tmvar x)
   | SSSE_App_Eval_Fun : forall S S' x1 t1 t2, 
     ssse S t1 S' (tmvar x1) ->
@@ -222,7 +210,54 @@ Inductive ssse : T -> tm -> T -> tm -> Prop :=
   | SSSE_App : forall S S' x1 x2 y t ti Q,
     sval S x1 (pvabs y ti t Q) ->
     scer' Q S x1 S' ->
-    ssse S (tmapp (tmvar x1) (tmvar x2)) S' (rp t y x2).
+    ssse S (tmapp (tmvar x1) (tmvar x2)) S' (rpi t y x2).
+
+Inductive full_eval : T -> tm -> T -> K -> Prop :=
+  | FuEv_Final : forall S S' t x,
+    ssse S t S' (tmvar x) -> full_eval S t S' x
+  | FuEv_Step  : forall S S' S'' t t' x,
+    ssse S t S' t' ->
+    ~(exists x', t' = tmvar x') ->
+    full_eval S' t' S'' x ->
+    full_eval S t S'' x.
+
+(* Test *)
+Example ssse_test_1 : forall p S x,
+  p = tmif (tmbool qlin btrue) (tmbool qlin bfalse) (tmbool qlin btrue) ->
+  full_eval Ø p S x ->
+  sval S x (pvbool bfalse qlin).
+Proof.
+  intros p S x H' H. subst p. 
+  inversion H as [SØ SS t x' Hf | SØ S' SS t t' x' H'].
+  { inversion Hf. }
+  subst SØ SS x' t. 
+  inversion H' as [| SØ SS' t tt' t1 t2 Hbool | | | | | | | | | | |].
+  subst SØ SS' t t1 t2. subst t'.
+  inversion Hbool as [SØ y Q B Hy | | | | | | | | | | | |].
+  subst SØ Q B S' tt'. clear H' H0. 
+  inversion H1 as [SØ SS t x' Hf | Sy S' SS t t' x' H'].
+  { inversion Hf. }
+  subst Sy t SS x'. 
+  inversion H' as [| | Sy SS' y' Q t1 t2 Hyval Hscer | | | | | | | | | |].
+  { inversion H9. }
+  { subst Sy y' t1 t2 SS'. inversion Hscer as [S1 S2 y' V HQ Hlin |].
+    - subst y'. assert (HS' : S' = Ø). { admit. }
+      subst S'. rewrite -> HS' in H2. subst t' Q. clear Hlin Hscer H' HS' S1 S2 V.
+      clear Hyval H0 H1. inversion H2 as [SØ SS t x' Ht | SØ S' SS t t' x' Hf].
+      + subst SØ t SS x'. inversion Ht. subst S0 Q B S x0. apply S_Val.
+      + subst SØ t SS x'. inversion Hf as [SØ z Q B Hz | | | | | | | | | | | |].
+        subst SØ Q B S' t'. unfold not in H0.
+        assert (H0c : exists x' : id, tmvar z = tmvar x').
+        { exists z. reflexivity. }
+        apply H0 in H0c. inversion H0c.
+    - subst Q. inversion Hyval. subst x1 v.
+      assert (Hf : pvbool btrue qun = pvbool btrue qlin).
+      { eapply contains_unique with (s' := append S1 y (pvbool btrue qun)) (k := y).
+        - eapply contains_append. reflexivity.
+        - rewrite -> H7. eapply contains_append. reflexivity. }
+      inversion Hf. }
+  { subst S0 x0 t1 t2 S'0 t'. inversion H9. subst x0 v. admit. }
+Qed.
 
 (* Lemmas *)
 Lemma ssse_weakening : forall (S S' S1 S2 : T) (t t' : tm),
