@@ -285,11 +285,8 @@ Proposition substitution_lemma : forall tt G G1 G2 x y Tx Ttt,
   G ≜ G1 ∘ (ctx.append G2 y Tx) ->
   ctx.append G1 x Tx |- tt | Ttt ->
   qun 〔G2〕 ->
-  G |- (rp tt x y) | Ttt.
-Proof.
-  intros tt. induction tt.
-  - intros. simpl. unfold rpv. remember (var_eq x i) as varcompare. destruct varcompare. 
-    + inversion H0. subst. 
+  G |- (rpi tt x y) | Ttt.
+Proof. 
 Admitted.
 
 Proposition context_store_bool : forall S G Q x vi,
@@ -299,6 +296,7 @@ Proposition context_store_bool : forall S G Q x vi,
 Proof.
   Admitted.
 
+(* TODO: try doing the induction on the typing *)
 Lemma progress' : forall S t,
   prty' S t -> (exists S' t', ssse S t S' t') \/ (exists x, t = tmvar x /\ in' S x).
 Proof.
