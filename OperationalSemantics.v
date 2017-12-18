@@ -302,7 +302,7 @@ Lemma progress' : forall S t,
 Proof.
   intros S t. generalize dependent S. induction t.
   - intros. right. exists i. apply prty'_in' in H. split. reflexivity. apply H.
-  - intros. left. eexists. eexists. apply SSSE_Bool.
+  - intros. left. eexists. eexists. apply SSSE_Bool. reflexivity.
   - intros. inversion H; subst. inversion H1; subst.
     apply subsemantic with (G1 := G1) (G2 := G2) in H0; try apply H10. inversion H0 as [S1 HS1].
     inversion HS1 as [HS1l HS1r]. inversion HS1r as [S2 HS1r'].
@@ -345,7 +345,8 @@ Proof.
         exists (Sx2' ∪ Sx1). exists (tmpair q (tmvar x) t2'). eapply SSSE_Pair_Eval_Snd.
         apply ssse_weakening with (S := S) (S2 := Sx1) in H4''; try apply HSx2r'. apply H4''.
       * inversion H4 as [y H4']. inversion H4' as [H4'l H4'r]. subst t2.
-        exists (append S (Id 0) (pvpair x y q)). exists (tmvar (Id 0)). apply SSSE_Pair.
+        exists (append S (alloc S) (pvpair x y q)). exists (tmvar (alloc S)). apply SSSE_Pair. 
+        reflexivity.
   - intros. left. inversion H; subst. remember H0 as H0'. clear HeqH0'. inversion H1; subst.
     apply subsemantic with (G1 := G1) (G2 := G2) in H0; try apply H10. inversion H0 as [S1 HS1].
     inversion HS1 as [HS1l HS1r]. inversion HS1r as [S2 HS1r'].
@@ -362,9 +363,9 @@ Proof.
       remember H2'r as H2'rr. clear HeqH2'rr. eapply in'_weakening in H2'rr; try apply HS1r'.
       apply scer'_ex with (Q := Q) in H2'rr. inversion H2'rr as [S' H2'rr'].
       eapply SSSE_Split in Hval''; try apply H2'rr'.
-      exists S'. exists (rp (rp t2 i y') i0 z'). apply Hval''.
+      exists S'. exists (rpi (rpi t2 i y') i0 z'). apply Hval''.
     - admit.
-    - 
+    - admit.
 Qed.
 
 Lemma preservation : forall S t S' t',
@@ -375,12 +376,12 @@ Proof.
   intros S t S' t' H H'. generalize dependent H. induction H'; intros HH; inversion HH; subst.
   - eapply T_Prog.
     + destruct Q.
-      * eapply T_NextlinS. Focus 3. simpl. apply H0. Focus 2. apply H. apply dt.split_id_r.
-      * eapply T_NextunS. Focus 3. simpl. apply H0. Focus 2. apply H. apply dt.split_id_r.
-    + assert (X : forall G, ctx.append G x ti = M.mult (ctx.append G x ti) ctx.empty).
+      * eapply T_NextlinS. Focus 3. simpl. apply H1. Focus 2. apply H0. apply dt.split_id_r.
+      * eapply T_NextunS. Focus 3. simpl. apply H1. Focus 2. apply H0. apply dt.split_id_r.
+    + assert (X : forall G, ctx.append G (alloc S) ti = M.mult (ctx.append G (alloc S) ti) ctx.empty).
       { intros. rewrite -> M.id_r. reflexivity. }
       rewrite -> X. eapply dt.T_Var. rewrite -> M.id_r. apply dt.q_rel''_unr.
-  - inversion H0. subst. assert (X : stty S G1). { eapply stty_split. apply H9. apply H. }
+  - inversion H0. subst. assert (X : stty S G1). { admit. }
     eapply T_Prog in X. Focus 2. apply H4. apply IHH' in X. inversion X. subst.
     eapply T_Prog. apply H1. eapply dt.T_If. Focus 2. apply H6. Focus 2. apply H8.
     inversion H2. subst T0. subst x0.
