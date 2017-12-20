@@ -381,10 +381,15 @@ Proof.
     + assert (X : forall G, ctx.append G (alloc S) ti = M.mult (ctx.append G (alloc S) ti) ctx.empty).
       { intros. rewrite -> M.id_r. reflexivity. }
       rewrite -> X. eapply dt.T_Var. rewrite -> M.id_r. apply dt.q_rel''_unr.
-  - inversion H0. subst. assert (X : stty S G1). { admit. }
-    eapply T_Prog in X. Focus 2. apply H4. apply IHH' in X. inversion X. subst.
-    eapply T_Prog. apply H1. eapply dt.T_If. Focus 2. apply H6. Focus 2. apply H8.
-    inversion H2. subst T0. subst x0.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - inversion H2; subst. eapply T_Prog.
+    + 
 Qed.
 
 
