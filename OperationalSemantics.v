@@ -139,19 +139,19 @@ Inductive prty : T -> tm -> Prop :=
     G |- t | ti ->
     prty S t.
 
-Inductive prty' : T -> tm -> Prop :=
+Inductive prty' : T -> tm -> ty -> Prop :=
   | T_Prog' : forall S G t ti,
     stty' S G ->
     G |- t | ti ->
-    prty' S t.
+    prty' S t ti.
 
 Inductive in' : T -> id -> Prop :=
   | S_Contains : forall S x vi,
     contains S x vi ->
     in' S x.
 
-Proposition prty'_in' : forall S x,
-  prty' S (tmvar x) -> in' S x.
+Proposition prty'_in' : forall S x ti,
+  prty' S (tmvar x) ti -> in' S x.
 Proof.
   Admitted.
 
@@ -297,8 +297,8 @@ Proof.
   Admitted.
 
 (* TODO: try doing the induction on the typing *)
-Lemma progress' : forall S t,
-  prty' S t -> (exists S' t', ssse S t S' t') \/ (exists x, t = tmvar x /\ in' S x).
+Lemma progress' : forall S t ti,
+  prty' S t ti -> (exists S' t', ssse S t S' t') \/ (exists x, t = tmvar x /\ in' S x).
 Proof.
   intros S t. generalize dependent S. induction t.
   - intros. right. exists i. apply prty'_in' in H. split. reflexivity. apply H.
@@ -368,16 +368,14 @@ Proof.
     - admit.
 Qed.
 
-Lemma preservation : forall S t S' t',
-  prty S t ->
+Lemma preservation : forall S t S' t' ti,
+  prty' S t ti ->
   ssse S t S' t' ->
-  prty S' t'.
+  prty' S' t' ti.
 Proof.
-  intros S t S' t' H H'. generalize dependent H. induction H'; intros HH; inversion HH; subst.
-  - eapply T_Prog.
-    + destruct Q.
-      * eapply T_NextlinS. Focus 3. simpl. apply H1. Focus 2. apply H0. apply dt.split_id_r.
-      * eapply T_NextunS. Focus 3. simpl. apply H1. Focus 2. apply H0. apply dt.split_id_r.
+  intros S t S' t' ti H H'. generalize dependent H. induction H'; intros HH; inversion HH; subst.
+  - eapply T_Prog'.
+    + eapply T_NextS'. Focus 3. simpl. apply H1. Focus 2. apply H0. apply dt.split_id_r.
     + assert (X : forall G, ctx.append G (alloc S) ti = M.mult (ctx.append G (alloc S) ti) ctx.empty).
       { intros. rewrite -> M.id_r. reflexivity. }
       rewrite -> X. eapply dt.T_Var. rewrite -> M.id_r. apply dt.q_rel''_unr.
@@ -388,8 +386,11 @@ Proof.
   - admit.
   - admit.
   - admit.
-  - inversion H2; subst. eapply T_Prog.
-    + 
+  - inversion H2; subst. admit. (* eapply T_Prog. *)
+  - admit.
+  - admit.
+  - admit.
+  - 
 Qed.
 
 
