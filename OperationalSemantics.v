@@ -1,4 +1,5 @@
 Require Import Types.
+Require Import Axioms.
 Require Import Basics.
 Require Import SetCtx.
 Require Import DeclarativeTyping.
@@ -364,7 +365,7 @@ Proof.
       apply scer'_ex with (Q := Q) in H2'rr. inversion H2'rr as [S' H2'rr'].
       eapply SSSE_Split in Hval''; try apply H2'rr'.
       exists S'. exists (rpi (rpi t2 i y') i0 z'). apply Hval''.
-    - admit.
+    - admit. (* TODO *)
     - admit.
 Qed.
 
@@ -390,7 +391,53 @@ Proof.
   - admit.
   - admit.
   - admit.
-  - 
+  - destruct Q.
+    + (* lin *) inversion H0. subst x. assert (HSS' : append S' x1 V0 = S). { admit. }
+      assert (HS' : {S' = empty} + {S' <> empty}). { apply principium_tertii_exclusi. }
+      inversion HS'.
+      * (* empty *) eapply T_Prog'.
+        { rewrite -> H6. rewrite -> H3. eapply T_EmptyS'. }
+        { rewrite -> H3 in HSS'. rewrite <- HSS' in H1. inversion H1.
+          { apply decide_append_empty in H7. inversion H7. }
+          { assert (HS0 : S0 = empty). { admit. } subst S0. inversion H8.
+            { rewrite <- H12 in H7.
+              assert (HG1G2 : G1 = ctx.empty /\ G2 = ctx.empty). { admit. }
+              inversion HG1G2 as [HG1 HG2]. subst G0 G1 G2.
+              subst G. inversion H2.
+              (* either G1 = Ø ∷ x ti1 and G2 = Ø or G1 = Ø and G2 = Ø ∷ x ti1 *)
+              (* either way, we need H12 or H14 will produce False *)
+              assert (H16' : G1 = ctx.empty \/ G2 = ctx.empty). { admit. }
+              inversion H16'.
+              { subst G1. inversion H12. apply ctx.empty_union in H17. inversion H17.
+                apply M.equal_commut in H21. apply ctx.decide_append_empty in H21.
+                inversion H21. }
+              { subst G2. inversion H14. apply ctx.empty_union in H17. inversion H17.
+                apply M.equal_commut in H21. apply ctx.decide_append_empty in H21.
+                inversion H21. } }
+            { apply M.equal_commut in H11. apply decide_append_empty in H11. inversion H11. } } }
+      * (* non-empty *) apply decide_append in H3. inversion H3 as [S'' H3']. 
+        inversion H3' as [k H3'']. inversion H3'' as [v H3'''].
+        rewrite -> H6. eapply T_Prog'.
+        Focus 2. inversion H. subst x v0.
+        assert (HV0 : V0 = pvabs y ti0 t qlin). { admit. } subst V0. clear H5 S0. 
+        inversion H2. subst G0 t1 t2 T12. inversion H8. subst x T0.
+        inversion H10. subst x T0. destruct Q.
+        (* x1 qlin *)
+        (* G - x1 = (G0 ∪ G3) ∘ G2 *)
+        Focus 1. eapply substitution_lemma.
+        { assert (H12' : ctx.remove G x1 ≜ (G0 ∪ G3) ∘ ctx.append (G4 ∪ G5) x2 T11). 
+          { admit. } apply H12'. }
+        { (* TODO *) admit. }
+        { apply H13. }
+        (* x1 qun  *)
+        (* G - x1 = (G0 ∪ G3) ∘ (G2 - x1) *)
+        Unfocus. eapply substitution_lemma.
+        { assert (H12' : ctx.remove G x1 ≜ (G0 ∪ G3) ∘ ctx.append (ctx.remove (G4 ∪ G5) x1) x2 T11). 
+          { admit. } apply H12'. }
+        { (* TODO *) admit. }
+        { admit. }
+        Unfocus. 
+    + (* un  *)
 Qed.
 
 

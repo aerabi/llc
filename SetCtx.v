@@ -31,6 +31,11 @@ Module Type AbelianMonoid.
   (* The Axiom of Commutativity *)
   Parameter commut : forall m1 m2, m1 o m2 = m2 o m1.
 
+  Lemma equal_commut : forall (m1 m2 : T), m1 = m2 -> m2 = m1.
+  Proof.
+    intros. rewrite -> H. reflexivity.
+  Qed.
+
   Lemma exchange : forall A B C D, A o B o C o D = A o C o B o D.
   Proof.
     intros.
@@ -66,6 +71,9 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
 
   Parameter decide_append_empty : forall s' k v, empty = append s' k v -> False.
 
+  Lemma empty_union : forall s1 s2, M.mult s1 s2 = empty -> s1 = empty /\ s2 = empty.
+  Proof. Admitted.
+
   Proposition decide_append_iff : forall (s : T),
       s <> empty <->
       exists s' k v, s = append s' k v.
@@ -98,6 +106,11 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
     rewrite -> M.exchange. rewrite -> M.id_r. repeat rewrite <- append_to_concat.
     reflexivity.
   Qed.
+
+  (* Remove *)
+  Parameter remove : T -> K -> T.
+
+  Parameter remove_append : forall s k v, remove (append s k v) k = s.
 
   (* Membership *)  (* TODO: append k v k v' *)
   Inductive contains : T -> K -> V -> Prop :=
