@@ -1,5 +1,6 @@
 Require Import SetCtx.
 
+Require Import Coq.Bool.Bool.
 Require Import Coq.Logic.Classical_Prop.
 Require Import Coq.Logic.Classical_Pred_Type.
 
@@ -7,6 +8,7 @@ Module Type ModuleType.
 
   Parameter T : Type.
   Parameter equal : T -> T -> bool.
+  Parameter eq_refl : forall x, equal x x = true.
 
 End ModuleType.
 
@@ -251,6 +253,31 @@ Module Type ListCtx
     contains_key_contains : forall (A : T) (k : K) (v : V),
       contains A k v -> contains_key A k.
 
+  (* Remove *)
+  Fixpoint remove (A : T) (k : K) : T :=
+    match A with
+    | append B k' v' => 
+      if KM.equal k k' then remove B k else append (remove B k) k' v'
+    | empty => empty
+    end.
+
+  Lemma remove_not_contains : forall A k, ~ contains_key (remove A k) k.
+  Proof.
+    intros A. induction A. 
+    - intros k. unfold not. intros Hf. simpl in Hf. inversion Hf. inversion H. inversion H2. 
+    - intros k'. unfold not. intros Hf.
+      assert (Ht : KM.equal k' k = true \/ KM.equal k' k <> true). { apply classic. } 
+      inversion Ht.
+      + simpl in Hf. rewrite -> H in Hf. apply IHA in Hf. apply Hf.
+      + simpl in Hf. apply not_true_iff_false in H. rewrite -> H in Hf.
+        inversion Hf. subst A0 k0. inversion H0.
+        * subst k0 v1. inversion H1. subst k'.
+          assert (H' : KM.equal k k = true). { apply KM.eq_refl. }
+          rewrite -> H in H'. apply diff_false_true in H'. apply H'.
+        * subst s' k0 v1 k'0 v0. apply contains_key_contains in H6.
+          apply IHA in H6. apply H6.
+  Qed.
+
   (* Duplicate Keys *)
   Inductive duplicated : T -> Prop :=
     duplicate_keys : forall (A : T) (k : K) (v v' : V),
@@ -289,6 +316,6 @@ Module Type ListCtx
   Qed.
 
   (* Allocate *)
-  
+  Parameter alloc : T -> K.
 
 End ListCtx.
