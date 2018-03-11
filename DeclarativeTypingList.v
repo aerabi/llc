@@ -207,3 +207,4 @@ Lemma unrestricted_contraction : forall G t x1 x2 x3 T P,
 Proof.
 Admitted.
 
+End DeclarativeTyping.
