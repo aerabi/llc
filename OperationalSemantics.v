@@ -134,6 +134,25 @@ Inductive stty' : T -> ctx.T -> Prop :=
     G1 |- tmv tt | ti ->
     stty' (append S x tt) (ctx.append G2 x ti).
 
+Proposition stty'_arbitrary : forall S G x tt ti,
+  stty' S G ->
+  contains S x tt ->
+  ctx.contains G x ti ->
+  (exists G1 G2, G ≜ G1 ∘ G2 /\ G1 |- tmv tt | ti).
+Proof.
+Admitted.
+
+Proposition stty'_remove : forall S G x,
+  stty' S G -> 
+  contains_key S x ->
+  ctx.contains_key G x ->
+  stty' (remove S x) (ctx.remove G x).
+Proof.
+  intros S G x Hstty' HSx HGx. inversion Hstty'.
+  - rewrite <- H in HSx. apply empty_contains_key in HSx. inversion HSx.
+  - pose proof contains_contains_key as cck.
+Admitted.
+
 Inductive prty : T -> tm -> Prop :=
   | T_Prog : forall S G t ti,
     stty S G ->
@@ -436,8 +455,38 @@ Proof.
           { admit. } apply H12'. }
         { (* TODO *) admit. }
         { admit. }
-        Unfocus. 
-    + (* un  *)
+        Unfocus. clear H3 H3' H3'' HS'.
+        assert (HS' : remove S x1 = S'). { admit. } rewrite <- HS'.
+        apply stty'_remove. apply H1.
+        { eapply contains_key_append. rewrite <- HSS'. reflexivity. }
+        { admit. }
+    + (* un  *) inversion H0. subst x S0 S'. eapply T_Prog'; try apply H1.
+      inversion H1.
+      * (* empty *) inversion H2. subst G0 ti t1 t2. inversion H7.
+        subst G. inversion H11.
+        { subst G1 G2. inversion H9. 
+          assert (Hempty : ctx.empty = ctx.append G1 x0 T1). { admit. }
+          apply ctx.decide_append_empty in Hempty. inversion Hempty. }
+        { apply M.equal_commut in H4. apply ctx.decide_append_empty in H4. inversion H4. }
+        { apply M.equal_commut in H4. apply ctx.decide_append_empty in H4. inversion H4. }
+        { apply M.equal_commut in H4. apply ctx.decide_append_empty in H4. inversion H4. }
+      * (* non-empty *) rewrite -> H7. inversion H2. subst G3 t1 t2 T12. inversion H12.
+        subst x0 T0. eapply substitution_lemma.
+        { rewrite <- H9 in H14. rewrite -> M.commut in H14.
+          erewrite -> ctx.append_concat with (s2 := ctx.append G3 x2 T11) in H14.
+          Focus 2. reflexivity. apply H14. }
+        { inversion H10. subst x0 T0. inversion H. subst x0 v.
+          rewrite <- H8 in H1. inversion H1.
+          { eapply decide_append_empty in H17. inversion H17. }
+          { apply stty'_arbitrary with (x := x1) (tt := pvabs y ti0 t qun)
+            (ti := ((T11 --> ti) Q)) in H1. inversion H1 as [G1' H1']. inversion H1' as [G2' H1''].
+            inversion H1'' as [H1''l H1''r]. inversion H1''r.
+            subst G12 Q0 x3 T1 t2 ti0 T2 Q. admit. (* TODO *)
+            { eapply contains_append. reflexivity. }
+            { rewrite <- H13 in H14. admit. } 
+          } 
+        }
+        { rewrite -> M.commut. apply H11. } 
 Qed.
 
 
