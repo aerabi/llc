@@ -145,18 +145,17 @@ where "G '|-' t '|' T" := (ctx_ty G t T).
 Hint Constructors ctx_ty.
 
 (* Three Lemmas *)
-Lemma exchange : forall t x1 x2 T1 T2 T G1 G2,
+Lemma exchange_lemma : forall t x1 x2 T1 T2 T G1 G2,
   (append (append G1 x1 T1) x2 T2) ∪ G2 |- t | T ->
   (append (append G1 x2 T2) x1 T1) ∪ G2 |- t | T.
 Proof.
   intros.
   assert (H' : (append (append G1 x1 T1) x2 T2) ∪ G2 = (append (append G1 x2 T2) x1 T1) ∪ G2).
-    { assert (HG1x1 : append G1 x1 T1 = G1 ∪ (append empty x1 T1)). { apply append_to_concat. }
-      assert (HG2x2 : append G1 x2 T2 = X ∪ (append empty x2 T2)). { apply append_to_concat. }
-      assert (HG2x1 : append G2 x1 T1 = G2 ∪ (append empty x1 T1)). { apply append_to_concat. }
-      assert (HG2x2 : append G2 x2 T2 = G2 ∪ (append empty x2 T2)). { apply append_to_concat. }
-      rewrite -> HG1x1.
-rewrite -> append_to_concat. apply exchange. }
+    { rewrite -> append_to_concat with (k := x2). 
+      rewrite -> append_to_concat with (k := x1).
+      rewrite -> append_to_concat with (s' := append G1 x2 T2).
+      rewrite -> append_to_concat with (s' := G1).
+      apply exchange. }
   rewrite <- H'. apply H.
 Qed.
 
@@ -165,7 +164,7 @@ Lemma unrestricted_weakening : forall G t x T P,
   append G x (P qun) |- t | T.
 Proof.
   intros. generalize dependent G. generalize dependent T0. induction t; intros; inversion H; subst.
-  - rewrite -> append_to_concat. rewrite -> M.assoc. eapply T_Var. apply q_rel''_concat_ctx' in H2.
+  - rewrite -> append_to_concat. rewrite -> assoc. eapply T_Var. apply q_rel''_concat_ctx' in H2.
     inversion H2 as [H2l H2r]. apply q_rel''_concat_ctx; try apply H2l. apply q_rel''_concat_ctx; try apply H2r.
     eapply Q_Rel_Ctx_Update; try apply Q_Rel_Ctx_Empty. apply Q_Rel_Type. apply Q_Ref.
   - apply T_Bool. apply Q_Rel_Ctx_Update; try apply H4. apply Q_Rel_Type. apply Q_Ref.
@@ -184,8 +183,8 @@ Proof.
         G ∪ (append empty x ti) ∪ (append empty x' ti') ∪ (append empty x'' ti'') ).
       { intros. repeat rewrite <- append_to_concat. reflexivity. }
       assert ( weak_set_exchange : forall A B C, A ∪ B ∪ C = A ∪ C ∪ B ).
-      { intros. rewrite <- M.id_r. rewrite -> M.exchange. rewrite -> M.id_r. reflexivity. }
-      rewrite -> H'. rewrite -> M.exchange. rewrite -> weak_set_exchange. repeat rewrite <- kvs.append_to_concat.
+      { intros. rewrite <- id_r. rewrite <- id_r with (m := A ∪ B ∪ C). apply exchange. }
+      rewrite -> H'. rewrite -> exchange. rewrite -> weak_set_exchange. repeat rewrite <- kvs.append_to_concat.
       apply IHt2. apply H7.
     + apply M_Un with (x := x) (P := P) in H8. apply H8.
   - apply T_Abs.
@@ -194,7 +193,7 @@ Proof.
     + assert ( H' : append (append G x (P qun)) i t = G ∪ (append empty x (P qun)) ∪ (append empty i t) ).
       { repeat rewrite <- append_to_concat. reflexivity. }
       assert ( weak_set_exchange : forall A B C, A ∪ B ∪ C = A ∪ C ∪ B ).
-      { intros. rewrite <- M.id_r. rewrite -> M.exchange. rewrite -> M.id_r. reflexivity. }
+      { intros. rewrite <- id_r. rewrite -> exchange. rewrite -> id_r. reflexivity. }
       rewrite -> H'. rewrite -> weak_set_exchange. repeat rewrite <- append_to_concat. apply IHt. apply H7.
   - eapply T_App.
     + apply IHt1 in H2. apply H2.
