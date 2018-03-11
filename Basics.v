@@ -150,6 +150,16 @@ Inductive v : Type :=             (* [Figure 1-7, v] *)
 
 where "'pv'" := (q -> v).
 
+Definition v_eq (vi vi' : v) : bool :=
+  match vi, vi' with
+  | pvbool bi qi, pvbool bi' qi' => andb (b_eq bi bi') (q_eq qi qi')
+  | pvpair x y qi, pvpair x' y' qi' =>
+      andb (andb (var_eq x x') (var_eq y y')) (q_eq qi qi')
+  | pvabs x ti t qi, pvabs x' ti' t' qi' =>
+      andb (andb (var_eq x x') (ty_eq ti ti')) (andb (tm_eq t t') (q_eq qi qi'))
+  | _, _ => false
+  end.
+
 Fixpoint tmv (t : v) : tm :=
   match t with
   | pvbool bi qi => tmbool qi bi
