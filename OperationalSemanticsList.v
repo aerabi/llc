@@ -1,13 +1,18 @@
-Require Import Types.
-Require Import Axioms.
 Require Import Basics.
 Require Import ListCtx.
 Require Import DeclarativeTypingList.
 
-Module Type ModuleVal <: ModuleType.
+Require Import Coq.Bool.Bool.
+
+Module Type ModuleVal <: ValModuleType.
 
   Definition T := v.
   Definition equal := v_eq.
+
+  Definition eq_refl : forall vi, equal vi vi = true.
+  Proof.
+    intros. apply v_eq_refl.
+  Qed.
 
 End ModuleVal.
 
@@ -23,7 +28,7 @@ Module OperationalSemantics
 Import kvs.
 Notation "'Ø'" := (empty).
 Notation "G '∷' x T" := (append G x T) (at level 29, left associativity).
-Notation "G1 '∪' G2" := (M.mult G1 G2) (at level 40, left associativity).
+Notation "G1 '∪' G2" := (mult G1 G2) (at level 40, left associativity).
 
 (* Store as a Function *)
 Inductive sval : T -> id -> v -> Prop :=
@@ -113,19 +118,6 @@ Notation "Q '〔' G '〕'" := (dt.q_rel'' Q G) (at level 30).
 
 (* Store Typing and Program Typing *)
 
-Inductive stty : T -> ctx.T -> Prop :=
-  | T_EmptyS : stty empty ctx.empty
-  | T_NextlinS : forall S G G1 G2 (w : pv) ti x,
-    G ≜ G1 ∘ G2 ->
-    stty S G ->
-    G1 |- tmv (w qlin) | ti ->
-    stty (append S x (w qlin)) (ctx.append G2 x ti)
-  | T_NextunS : forall S G G1 G2 (w : pv) ti x,
-    G ≜ G1 ∘ G2 ->
-    stty S G ->
-    G1 |- tmv (w qun) | ti ->
-    stty (append S x (w qun)) (ctx.append G2 x ti).
-
 Inductive stty' : T -> ctx.T -> Prop :=
   | T_EmptyS' : stty' empty ctx.empty
   | T_NextS' : forall S G G1 G2 ti tt x,
@@ -148,16 +140,7 @@ Proposition stty'_remove : forall S G x,
   ctx.contains_key G x ->
   stty' (remove S x) (ctx.remove G x).
 Proof.
-  intros S G x Hstty' HSx HGx. inversion Hstty'.
-  - rewrite <- H in HSx. apply empty_contains_key in HSx. inversion HSx.
-  - pose proof contains_contains_key as cck.
 Admitted.
-
-Inductive prty : T -> tm -> Prop :=
-  | T_Prog : forall S G t ti,
-    stty S G ->
-    G |- t | ti ->
-    prty S t.
 
 Inductive prty' : T -> tm -> ty -> Prop :=
   | T_Prog' : forall S G t ti,
@@ -270,13 +253,8 @@ Proof.
         assert (H0c : exists x' : id, tmvar z = tmvar x').
         { exists z. reflexivity. }
         apply H0 in H0c. inversion H0c.
-    - subst Q. inversion Hyval. subst x1 v.
-      assert (Hf : pvbool btrue qun = pvbool btrue qlin).
-      { eapply contains_unique with (s' := append S1 y (pvbool btrue qun)) (k := y).
-        - eapply contains_append. reflexivity.
-        - rewrite -> H7. eapply contains_append. reflexivity. }
-      inversion Hf. }
-  { subst S0 x0 t1 t2 S'0 t'. inversion H9. subst x0 v. admit. }
+    - subst Q. inversion Hyval. }
+  { subst S0 x0 t1 t2 S'0 t'. inversion H9. }
 Qed.
 
 (* Lemmas *)
