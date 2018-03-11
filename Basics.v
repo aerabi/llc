@@ -1,3 +1,5 @@
+Require Import Coq.Bool.Bool.
+
 (* Quantifiers : Linear & Unrestricted [Figure 1-3, q] *)
 Inductive q : Type :=
   | qlin : q  (* [Figure 1-3, lin] *)
@@ -41,6 +43,13 @@ Fixpoint nat_eq ( m : nat ) ( n : nat ) : bool :=
   | S m', S n' => nat_eq m' n'
   end.
 
+Proposition nat_eq_refl : forall n, nat_eq n n = true.
+Proof.
+  intros. induction n.
+  - simpl. reflexivity.
+  - simpl. apply IHn.
+Qed.
+
 Lemma nat_eq_to_eq : forall m n, nat_eq m n = true -> m = n.
 Proof.
   intros m. induction m; induction n; intros H.
@@ -56,6 +65,11 @@ Definition var_eq ( x : id ) ( y : id ) : bool :=
   | Pt m, Pt n => nat_eq m n
   | _, _ => false
   end.
+
+Proposition var_eq_refl : forall x, var_eq x x = true.
+Proof.
+  intros. destruct x; simpl; apply nat_eq_refl.
+Qed.
 
 Lemma var_eq_to_eq : forall x y, var_eq x y = true -> x = y.
 Proof.
@@ -88,6 +102,22 @@ Fixpoint ty_eq ( T1 : ty ) ( T2 : ty ) : bool :=
   | _, _ => false
   end.
 
+Definition ty_eq_refl : forall t, ty_eq t t = true.
+Proof.
+  intros. induction t; simpl.
+  - destruct q0; simpl; reflexivity.
+  - apply andb_true_iff. split.
+    { destruct q0; simpl; reflexivity. }
+    apply andb_true_iff. split.
+    { apply IHt1. }
+    { apply IHt2. }
+  - apply andb_true_iff. split.
+    { destruct q0; simpl; reflexivity. }
+    apply andb_true_iff. split.
+    { apply IHt1. }
+    { apply IHt2. }
+Qed.
+
 (* Terms [Figure 1-3, t] *)
 Inductive tm : Type :=
   | tmvar : id -> tm                       (* [Figure 1-3, x] *)
@@ -113,6 +143,10 @@ Fixpoint tm_eq ( t1 : tm ) ( t2 : tm ) : bool :=
   | tmapp t1 t2, tmapp t'1 t'2 => andb (tm_eq t1 t'1) (tm_eq t2 t'2)
   | _, _ => false
   end.
+
+Proposition tm_eq_refl : forall t, tm_eq t t = true.
+Proof.
+  Admitted.
 
 Example tm_eq_test_1 : tm_eq (tmvar (Id 0)) (tmvar (Id 0)) = true.
 Proof. simpl. reflexivity. Qed.
@@ -159,6 +193,21 @@ Definition v_eq (vi vi' : v) : bool :=
       andb (andb (var_eq x x') (ty_eq ti ti')) (andb (tm_eq t t') (q_eq qi qi'))
   | _, _ => false
   end.
+
+Definition v_eq_refl : forall vi, v_eq vi vi = true.
+Proof.
+  intros vi. induction vi; simpl.
+  - apply andb_true_iff. split.
+    { destruct b0; simpl; reflexivity. }
+    { destruct q0; simpl; reflexivity. }
+  - apply andb_true_iff. split.
+    { apply andb_true_iff. split; apply var_eq_refl. }
+    { destruct q0; simpl; reflexivity. }
+  - apply andb_true_iff. split.
+    { apply andb_true_iff. split. { apply var_eq_refl. } { apply ty_eq_refl. } }
+    { apply andb_true_iff. split. { apply tm_eq_refl. }
+      destruct q0; simpl; reflexivity. }
+Qed.
 
 Fixpoint tmv (t : v) : tm :=
   match t with

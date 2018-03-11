@@ -1,20 +1,47 @@
-Require Import SetCtx.
+Require Import Basics.
 
 Require Import Coq.Bool.Bool.
 Require Import Coq.Logic.Classical_Prop.
 Require Import Coq.Logic.Classical_Pred_Type.
 
-Module Type ModuleType.
+Module Type KeyModuleType.
+
+  Parameter T : Type.
+  Parameter equal : T -> T -> bool.
+  Parameter eq_refl : forall x, equal x x = true.
+  Parameter eq_extensionality : forall x y, equal x y = true -> x = y.
+
+End KeyModuleType.
+
+Module Type ValModuleType.
 
   Parameter T : Type.
   Parameter equal : T -> T -> bool.
   Parameter eq_refl : forall x, equal x x = true.
 
-End ModuleType.
+End ValModuleType.
+
+Module Type ModuleId <: KeyModuleType.
+
+  Definition T := id.
+  Definition equal : T -> T -> bool := var_eq.
+
+  Lemma eq_refl : forall i, equal i i = true.
+  Proof.
+    intros. destruct i; simpl; apply nat_eq_refl.
+  Qed.
+
+  Lemma eq_extensionality : forall x y, equal x y = true -> x = y.
+  Proof.
+    intros. induction x; induction y; inversion H;
+    apply nat_eq_to_eq in H1; subst n0; reflexivity.
+  Qed.
+
+End ModuleId.
 
 Module Type ListCtx  
-  ( KM : ModuleType ) 
-  ( VM : ModuleType ).
+  ( KM : KeyModuleType ) 
+  ( VM : ValModuleType ).
 
   Definition K : Type := KM.T.
   Definition V : Type := VM.T.
@@ -276,6 +303,31 @@ Module Type ListCtx
           rewrite -> H in H'. apply diff_false_true in H'. apply H'.
         * subst s' k0 v1 k'0 v0. apply contains_key_contains in H6.
           apply IHA in H6. apply H6.
+  Qed.
+
+  Proposition empty_contains_key : forall k, contains_key empty k -> False.
+  Proof.
+    intros. inversion H. inversion H0. inversion H3.
+  Qed.
+
+  Lemma remove_not_contained : forall (A : T) (k : K),
+    ~ contains_key A k -> remove A k = A.
+  Proof.
+    intros A. induction A.
+    - intros. simpl. reflexivity.
+    - intros k' H. unfold not in H.
+      assert (Ht : KM.equal k' k = true \/ KM.equal k' k <> true). { apply classic. } 
+      inversion Ht.
+      + assert (Hf : contains (append A k v) k v). { eapply contains_append. reflexivity. }
+        apply KM.eq_extensionality in H0. subst k'. apply contains_key_contains in Hf.
+        apply H in Hf. inversion Hf.
+      + simpl in H. apply not_true_iff_false in H0. simpl. rewrite -> H0.
+        assert (HX : ~ contains_key A k').
+        { unfold not. intros Hf. inversion Hf. subst A0 k0.
+          assert (HX' : contains (append A k v) k' v0). 
+          { apply contains_append_set. apply H1. }
+          apply contains_key_contains in HX'. apply H in HX'. apply HX'. }
+        apply IHA in HX. rewrite -> HX. reflexivity.
   Qed.
 
   (* Duplicate Keys *)

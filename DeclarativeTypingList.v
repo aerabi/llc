@@ -1,20 +1,20 @@
 Require Import Basics.
 Require Import ListCtx.
 
+Require Import Coq.Bool.Bool.
+
 (* Define new ModuleType for id and ty, for later using them as key-value types of the
    Key-Value Set. *)
 
-Module Type ModuleId <: ModuleType.
-
-  Definition T := id.
-  Definition equal : T -> T -> bool := var_eq.
-
-End ModuleId.
-
-Module Type ModuleTy <: ModuleType.
+Module Type ModuleTy <: ValModuleType.
 
   Definition T := ty.
-  Definition equal (t t' : T) : bool := false. (* TODO *)
+  Definition equal : T -> T -> bool := ty_eq.
+
+  Definition eq_refl : forall t, equal t t = true.
+  Proof.
+    intros. apply ty_eq_refl.
+  Qed.
 
 End ModuleTy.
 
