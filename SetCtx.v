@@ -112,7 +112,7 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
 
   Parameter remove_append : forall s k v, remove (append s k v) k = s.
 
-  (* Membership *)  (* TODO: append k v k v' *)
+  (* Membership *)
   Inductive contains : T -> K -> V -> Prop :=
   | contains_append : forall s s' k v, s = append s' k v -> contains s k v
   | contains_append_set : forall s' k v k' v', k <> k' -> contains s' k' v' -> contains (append s' k v) k' v'.
@@ -125,6 +125,22 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
       apply decide_append_empty in H'. apply H'.
   Qed.
 
+  (* Key Membership *)
+  Inductive contains_key : T -> K -> Prop :=
+  | contains_key_append : forall s s' k v, s = append s' k v -> contains_key s k
+  | contains_key_append_set : forall s' k v k', k <> k' -> 
+    contains_key s' k' -> contains_key (append s' k v) k'.
+
+  Proposition empty_contains_key : forall k, contains_key empty k -> False.
+  Proof.
+    intros. inversion H.
+    - apply decide_append_empty in H0. apply H0.
+    - apply M.equal_commut in H0. apply decide_append_empty in H0. apply H0.
+  Qed.
+
+  Parameter remove_not_contained : forall s k, 
+    ~ contains_key s k -> remove s k = s.
+
   Lemma contains_exists : forall (S S' : M.T) k v,
     contains S k v ->
     exists S', S = append S' k v.
@@ -134,9 +150,18 @@ Module Type KeyValueSet ( M : AbelianMonoid ) ( KM : Types.ModuleType ) ( VM : T
     - inversion IHcontains as [s'']. subst s'. exists (append s'' k v). apply append_commut.
   Qed.
 
+  Proposition remove_empty : forall k, remove empty k = empty.
+  Proof.
+    intros. apply remove_not_contained. unfold not. intros. 
+    eapply empty_contains_key. apply H.
+  Qed.
+
   Parameter decide_cross_append : forall s s' k k' v v',
     append s k' v' = append s' k v ->
     (k = k' /\ v = v' /\ s = s') \/ (k <> k' /\ contains s k v /\ contains s' k' v').
+
+  Parameter contains_contains_key : forall S k, 
+    (exists v, contains S k v) <-> contains_key S k.
 
   Lemma contains_set_append_law : forall s k v k' v',
     contains (append s k' v') k v ->
