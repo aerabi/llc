@@ -1,8 +1,8 @@
 Require Import Coq.Logic.Classical_Prop.
 Require Import Coq.Logic.Classical_Pred_Type.
+Require Import Coq.Logic.ClassicalUniqueChoice.
 
 Require Import Types.
-Require Import Ensembles.
 
 
 Module Type MapCtxMonoid  
@@ -57,6 +57,7 @@ Module Type MapCtxMonoid
   | union_l : forall (k : K) (v : V), contains B k v -> contains (union B C) k v
   | union_r : forall (k : K) (v : V), contains C k v -> contains (union B C) k v.
 
+  (* Commutativity *)
   Lemma commut : forall (B C : T), union B C = union C B.
   Proof.
     intros B C. apply extensionality. unfold eq. split.
@@ -133,6 +134,15 @@ Module Type MapCtxMonoid
   (* Append *)
   Definition append (A : T) (k : K) (v : V) : T := union A (singleton k v).
 
+  Lemma singleton_empty : forall (k : K) (v : V), singleton k v = append Ø k v.
+  Proof.
+    intros. apply extensionality. unfold eq. split; unfold subseteq.
+    - intros k' v' H. inversion H. subst k' v'. apply union_r. apply H.
+    - intros k' v' H. inversion H as [k'' v'' H' | k'' v'' H'].
+      + inversion H'.
+      + apply H'.
+  Qed.
+
   (* Set Minus *)
   Inductive setminus (B C : T) : T :=
     contains_setminus : forall (k : K) (v : V),
@@ -183,3 +193,45 @@ Module Type MapCtxMonoid
       inversion Hr' as [v Hr'']. apply not_imply_elim in Hr''.
       inversion Hr''.
   Qed.
+
+  (* Contains Key *)
+  Inductive contains_key : T -> K -> Prop :=
+    contains_key_contains : forall (A : T) (k : K) (v : V),
+      contains A k v -> contains_key A k.
+
+  (* Duplicate Keys *)
+  Inductive duplicated : T -> Prop :=
+    duplicate_keys : forall (A : T) (k : K) (v v' : V),
+      contains A k v -> contains A k v' -> v <> v' -> duplicated A.
+
+  Definition well_defined (A : T) : Prop := ~ duplicated A.
+
+  Lemma contains_unique : forall (A : T) (k : K),
+    well_defined A -> contains_key A k -> (exists! (v : V), contains A k v).
+  Proof.
+    intros A k H H'. inversion H'. subst A0 k0. exists v. unfold unique. split.
+    - apply H0.
+    - intros v'. unfold well_defined in H. unfold not in H. intros.
+      (* reductio ad absurdum *)
+      assert (Hx : v = v' \/ v <> v'). { apply classic. }
+      inversion Hx; try apply H2. assert (Hf : duplicated A). 
+      { eapply duplicate_keys. apply H0. apply H1. apply H2. }
+      apply H in Hf. inversion Hf.
+  Qed.
+
+  (* Pair Uniqueness *)
+  Lemma unique_append : forall (A : T) (k : K) (v : V), 
+    contains A k v -> append A k v = A.
+  Proof.
+    intros. apply extensionality. unfold eq. split; unfold subseteq; intros k' v'.
+    - intros H'. unfold append in H'. inversion H'.
+      + subst k0 v0. apply H0.
+      + subst k0 v0. inversion H0. subst k' v'. apply H.
+    - intros H'. unfold append. apply union_l. apply H'.
+  Qed.
+
+  (* Alloc *)
+  
+
+
+
