@@ -71,56 +71,6 @@ Inductive scer' : q -> T -> id -> T -> Prop :=
       scer' qlin ((append S1 x V) ∪ S2) x (S1 ∪ S2)
   | Tilde_Un : forall S x, scer' qun S x S.
 
-(* Small-Step Evaluation *)
-Inductive semev : T -> tm -> T -> tm -> Prop :=
-  | E_Bool : forall S x Q (B : b),
-    semev S (tmbool Q B) (append S x (pvbool B Q)) (tmvar x)
-  | E_If_T : forall S S' x Q t1 t2,
-    sval S x (pvbool btrue Q) ->
-    scer' Q S x S' ->
-    semev S (tmif (tmvar x) t1 t2) S' t1
-  | E_If_F : forall S S' x Q t1 t2,
-    sval S x (pvbool bfalse Q) ->
-    scer' Q S x S' ->
-    semev S (tmif (tmvar x) t1 t2) S' t2
-  | E_Pair : forall S x y z Q,
-    semev S (tmpair Q (tmvar y) (tmvar z)) (append S x (pvpair y z Q)) (tmvar x)
-  | E_Split : forall S S' x y y1 z z1 Q t,
-    sval S x (pvpair y1 z1 Q) ->
-    scer' Q S x S' ->
-    semev S (tmsplit (tmvar x) y z t) S' (rpi (rpi t y y1) z z1)
-  | E_Fun : forall S x y t ti Q,
-    semev S (tmabs Q y ti t) (append S x (pvabs y ti t Q)) (tmvar x)
-  | E_App : forall S S' x1 x2 y t ti Q,
-    sval S x1 (pvabs y ti t Q) ->
-    scer' Q S x1 S' ->
-    semev S (tmapp (tmvar x1) (tmvar x2)) S' (rpi t y x2).
-
-Hint Constructors semev.
-
-(* Top-Level Evaluation *)
-Inductive tlsemev : T -> tm -> T -> tm -> Prop :=
-  | E_Ctxt : forall S S' E t t',
-    semev S t S' t' ->
-    tlsemev S (eceval E t) S' (eceval E t').
-
-(* Lemmas *)
-Proposition tlsemev_semev : forall S S' t t',
-  semev S t S' t' ->
-  tlsemev S t S' t'.
-Proof.
-  intros. apply E_Ctxt with (E := echole) in H. simpl in H. apply H.
-Qed.
-
-(* Tests *)
-Example test_bool_1 :
-  semev empty (tmbool qlin btrue) (append empty (Id 0) (pvbool btrue qlin)) (tmvar (Id 0)).
-Proof. eapply E_Bool. Qed.
-
-Example test_bool_2 :
-  tlsemev empty (tmbool qlin btrue) (append empty (Id 0) (pvbool btrue qlin)) (tmvar (Id 0)).
-Proof. apply tlsemev_semev. apply test_bool_1. Qed.
-
 (* Store Typing *)
 Notation "G '≜' G1 '∘' G2" := (dt.split' G G1 G2) (at level 20, left associativity).
 Notation "G '|-' t '|' T" := (dt.ctx_ty G t T) (at level 60).
