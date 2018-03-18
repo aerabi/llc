@@ -35,6 +35,15 @@ Notation "G1 '∪' G2" := (mult G1 G2) (at level 40, left associativity).
 Inductive sval : T -> id -> v -> Prop :=
   | S_Val : forall S x v, sval (append S x v) x v.
 
+Lemma sval_contains : forall (A : T) (k : K) (v : V), sval A k v <-> contains A k v.
+Proof.
+  intros. split.
+  - intros. inversion H. eapply contains_append. reflexivity.
+  - intros. induction H.
+    + rewrite -> H. apply S_Val.
+    + inversion IHcontains. subst x v0. rewrite -> append_commut. apply S_Val. 
+Qed.
+
 (* Evaluation Context *)
 Inductive ec : Type :=
   | echole : ec
