@@ -108,10 +108,7 @@ Inductive prty' : T -> tm -> ty -> Prop :=
     G |- t | ti ->
     prty' S t ti.
 
-Inductive in' : T -> id -> Prop :=
-  | S_Contains : forall S x vi,
-    contains S x vi ->
-    in' S x.
+Definition in' : T -> id -> Prop := contains_key.
 
 Proposition prty'_in' : forall S x ti,
   prty' S (tmvar x) ti -> in' S x.
@@ -229,13 +226,19 @@ Lemma sval_weakening : forall S S1 S2 x T,
   sval S1 x T ->
   S = S1 ∪ S2 ->
   sval S x T.
-Proof. Admitted.
+Proof.
+  intros S S1 S2 k v H H'. apply sval_contains. rewrite -> H'. 
+  apply union_l. apply sval_contains. apply H.
+Qed.
 
 Lemma in'_weakening : forall S S1 S2 x,
   in' S1 x ->
   S = S1 ∪ S2 ->
   in' S x.
-Proof. Admitted.
+Proof.
+  intros S S1 S2 k H H'. unfold in' in H. unfold in'. inversion H. subst A k0.
+  apply contains_key_contains with (v := v). rewrite -> H'. apply union_l. apply H0.
+Qed.
 
 (* TODO: relation between S and G *)
 
