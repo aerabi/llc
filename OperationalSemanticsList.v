@@ -3,6 +3,7 @@ Require Import ListCtx.
 Require Import DeclarativeTypingList.
 
 Require Import Coq.Bool.Bool.
+Require Import Coq.Logic.Classical_Prop.
 
 Module Type ModuleVal <: ValModuleType.
 
@@ -315,7 +316,7 @@ Proof.
       Focus 2. apply H3. inversion H5 as [bi H5']. apply kvs.contains_exists in H3; auto.
       inversion H3 as [S1' H3'].
       assert (Hval : sval S x (pvbool bi Q)).
-      { subst S1 S. rewrite -> M.commut. rewrite -> kvs.append_to_concat. rewrite <- M.assoc.
+      { subst S1 S. rewrite -> commut. rewrite -> kvs.append_to_concat. rewrite <- assoc.
         rewrite <- kvs.append_to_concat. rewrite <- H5'. apply S_Val. }
       destruct bi; destruct Q.
       * exists (S1' ∪ S2). exists t2. eapply SSSE_If_T with (Q := qlin); try apply Hval.
@@ -374,9 +375,9 @@ Proof.
   intros S t S' t' ti H H'. generalize dependent H. induction H'; intros HH; inversion HH; subst.
   - eapply T_Prog'.
     + eapply T_NextS'. Focus 3. simpl. apply H1. Focus 2. apply H0. apply dt.split_id_r.
-    + assert (X : forall G, ctx.append G (alloc S) ti = M.mult (ctx.append G (alloc S) ti) ctx.empty).
-      { intros. rewrite -> M.id_r. reflexivity. }
-      rewrite -> X. eapply dt.T_Var. rewrite -> M.id_r. apply dt.q_rel''_unr.
+    + assert (X : forall G, ctx.append G (alloc S) ti = ctx.mult (ctx.append G (alloc S) ti) ctx.empty).
+      { intros. rewrite -> ctx.id_r. reflexivity. }
+      rewrite -> X. eapply dt.T_Var. rewrite -> ctx.id_r. apply dt.q_rel''_unr.
   - admit.
   - admit.
   - admit.
@@ -390,7 +391,7 @@ Proof.
   - admit.
   - destruct Q.
     + (* lin *) inversion H0. subst x. assert (HSS' : append S' x1 V0 = S). { admit. }
-      assert (HS' : {S' = empty} + {S' <> empty}). { apply principium_tertii_exclusi. }
+      assert (HS' : S' = empty \/ S' <> empty). { apply classic. }
       inversion HS'.
       * (* empty *) eapply T_Prog'.
         { rewrite -> H6. rewrite -> H3. eapply T_EmptyS'. }
