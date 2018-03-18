@@ -275,6 +275,23 @@ Module Type ListCtx
     repeat rewrite -> assoc. rewrite -> H'. reflexivity.
   Qed.
 
+  Proposition append_commut : forall s k v k' v',
+      append (append s k v) k' v' = append (append s k' v') k v.
+  Proof.
+    intros. rewrite -> append_to_concat. rewrite -> append_to_concat.
+    rewrite <- id_r with (m := s o (append empty k v) o (append empty k' v')).
+    rewrite -> exchange. rewrite -> id_r. repeat rewrite <- append_to_concat.
+    reflexivity.
+  Qed.
+
+  Lemma contains_exists : forall (S S' : T) (k : K) (v : V),
+    contains S k v -> exists S', S = append S' k v.
+  Proof.
+    intros. induction H.
+    - exists s'. subst. reflexivity.
+    - inversion IHcontains as [s'']. subst s'. exists (append s'' k v). apply append_commut.
+  Qed.
+
   (* Contains Key *)
   Inductive contains_key : T -> K -> Prop :=
     contains_key_contains : forall (A : T) (k : K) (v : V),
