@@ -347,6 +347,12 @@ Module Type ListCtx
         apply IHA in HX. rewrite -> HX. reflexivity.
   Qed.
 
+  Corollary remove_empty : forall (k : K), remove empty k = empty.
+  Proof.
+    intros. apply remove_not_contained. unfold not. intros. inversion H.
+    inversion H0. inversion H3.
+  Qed.
+
   (* Duplicate Keys *)
   Inductive duplicated : T -> Prop :=
     duplicate_keys : forall (A : T) (k : K) (v v' : V),

@@ -77,7 +77,6 @@ Notation "G '|-' t '|' T" := (dt.ctx_ty G t T) (at level 60).
 Notation "Q '〔' G '〕'" := (dt.q_rel'' Q G) (at level 30).
 
 (* Store Typing and Program Typing *)
-
 Inductive stty' : T -> ctx.T -> Prop :=
   | T_EmptyS' : stty' empty ctx.empty
   | T_NextS' : forall S G G1 G2 ti tt x,
@@ -274,7 +273,7 @@ Proof.
       apply ssse_weakening with (S := S) (S2 := S2) in H2''. Focus 2. apply HS1r'. 
       exists (S1' ∪ S2). exists (tmif t1' t2 t3). apply H2''.
     + left. inversion H2 as [x H2']. inversion H2' as [H2'l H2'r]. subst t1.
-      inversion H2'r. subst S0 x0. apply context_store_bool with (S := S1) (vi := vi) in H5.
+      inversion H2'r. subst A k. apply context_store_bool with (S := S1) (vi := v) in H5.
       Focus 2. apply H3. inversion H5 as [bi H5']. apply kvs.contains_exists in H3; auto.
       inversion H3 as [S1' H3'].
       assert (Hval : sval S x (pvbool bi Q)).
@@ -297,7 +296,7 @@ Proof.
       exists (S1' ∪ S2). exists (tmpair q t1' t2). eapply SSSE_Pair_Eval_Fst.
       apply ssse_weakening with (S := S) (S2 := S2) in H2''; try apply HS1r'. apply H2''.
     + inversion H2 as [x H2']. inversion H2' as [H2'l H2'r]. subst t1.
-      inversion H2'r. subst S0 x0. apply dt.split_comm in H11. 
+      inversion H2'r. subst A k. apply dt.split_comm in H11. 
       apply subsemantic with (G1 := G2) (G2 := G1) in Hstty; try apply H11.
       inversion Hstty as [Sx2 HSx2]. inversion HSx2 as [HSx2l HSx2r]. 
       inversion HSx2r as [Sx1 HSx2r']. eapply T_Prog' in HSx2l; try apply H6.
@@ -329,105 +328,28 @@ Proof.
     - admit.
 Qed.
 
+(* Preservation Lemma *)
 Lemma preservation : forall S t S' t' ti,
   prty' S t ti ->
   ssse S t S' t' ->
   prty' S' t' ti.
 Proof.
-  intros S t S' t' ti H H'. generalize dependent H. induction H'; intros HH; inversion HH; subst.
-  - eapply T_Prog'.
-    + eapply T_NextS'. Focus 3. simpl. apply H1. Focus 2. apply H0. apply dt.split_id_r.
-    + assert (X : forall G, ctx.append G (alloc S) ti = ctx.mult (ctx.append G (alloc S) ti) ctx.empty).
-      { intros. rewrite -> ctx.id_r. reflexivity. }
-      rewrite -> X. eapply dt.T_Var. rewrite -> ctx.id_r. apply dt.q_rel''_unr.
+  intros S t S' t' ti. induction t.
+  - intros Hprty Hssse. inversion Hssse.
+  - intros Hprty Hssse. inversion Hssse. subst S0 q b t'. 
+    inversion Hprty. subst S0 t ti0. eapply T_Prog'.
+    + eapply T_NextS'.
+      Focus 2. apply H.
+      Focus 2. simpl. apply H0.
+      Focus 1. apply dt.split_id_r.
+    + assert (HX : ctx.append (dt.unr G) x ti = ctx.mult (ctx.append (dt.unr G) x ti) ctx.empty).
+      { rewrite -> ctx.id_r. reflexivity. }
+      rewrite -> HX. apply dt.T_Var. rewrite -> ctx.id_r. apply dt.q_rel''_unr.
   - admit.
   - admit.
   - admit.
   - admit.
   - admit.
-  - admit.
-  - admit.
-  - inversion H2; subst. admit. (* eapply T_Prog. *)
-  - admit.
-  - admit.
-  - admit.
-  - destruct Q.
-    + (* lin *) inversion H0. subst x. assert (HSS' : append S' x1 V0 = S). { admit. }
-      assert (HS' : S' = empty \/ S' <> empty). { apply classic. }
-      inversion HS'.
-      * (* empty *) eapply T_Prog'.
-        { rewrite -> H6. rewrite -> H3. eapply T_EmptyS'. }
-        { rewrite -> H3 in HSS'. rewrite <- HSS' in H1. inversion H1.
-          { apply decide_append_empty in H7. inversion H7. }
-          { assert (HS0 : S0 = empty). { admit. } subst S0. inversion H8.
-            { rewrite <- H12 in H7.
-              assert (HG1G2 : G1 = ctx.empty /\ G2 = ctx.empty). { admit. }
-              inversion HG1G2 as [HG1 HG2]. subst G0 G1 G2.
-              subst G. inversion H2.
-              (* either G1 = Ø ∷ x ti1 and G2 = Ø or G1 = Ø and G2 = Ø ∷ x ti1 *)
-              (* either way, we need H12 or H14 will produce False *)
-              assert (H16' : G1 = ctx.empty \/ G2 = ctx.empty). { admit. }
-              inversion H16'.
-              { subst G1. inversion H12. apply ctx.empty_union in H17. inversion H17.
-                apply M.equal_commut in H21. apply ctx.decide_append_empty in H21.
-                inversion H21. }
-              { subst G2. inversion H14. apply ctx.empty_union in H17. inversion H17.
-                apply M.equal_commut in H21. apply ctx.decide_append_empty in H21.
-                inversion H21. } }
-            { apply M.equal_commut in H11. apply decide_append_empty in H11. inversion H11. } } }
-      * (* non-empty *) apply decide_append in H3. inversion H3 as [S'' H3']. 
-        inversion H3' as [k H3'']. inversion H3'' as [v H3'''].
-        rewrite -> H6. eapply T_Prog'.
-        Focus 2. inversion H. subst x v0.
-        assert (HV0 : V0 = pvabs y ti0 t qlin). { admit. } subst V0. clear H5 S0. 
-        inversion H2. subst G0 t1 t2 T12. inversion H8. subst x T0.
-        inversion H10. subst x T0. destruct Q.
-        (* x1 qlin *)
-        (* G - x1 = (G0 ∪ G3) ∘ G2 *)
-        Focus 1. eapply substitution_lemma.
-        { assert (H12' : ctx.remove G x1 ≜ (G0 ∪ G3) ∘ ctx.append (G4 ∪ G5) x2 T11). 
-          { admit. } apply H12'. }
-        { (* TODO *) admit. }
-        { apply H13. }
-        (* x1 qun  *)
-        (* G - x1 = (G0 ∪ G3) ∘ (G2 - x1) *)
-        Unfocus. eapply substitution_lemma.
-        { assert (H12' : ctx.remove G x1 ≜ (G0 ∪ G3) ∘ ctx.append (ctx.remove (G4 ∪ G5) x1) x2 T11). 
-          { admit. } apply H12'. }
-        { (* TODO *) admit. }
-        { admit. }
-        Unfocus. clear H3 H3' H3'' HS'.
-        assert (HS' : remove S x1 = S'). { admit. } rewrite <- HS'.
-        apply stty'_remove. apply H1.
-        { eapply contains_key_append. rewrite <- HSS'. reflexivity. }
-        { admit. }
-    + (* un  *) inversion H0. subst x S0 S'. eapply T_Prog'; try apply H1.
-      inversion H1.
-      * (* empty *) inversion H2. subst G0 ti t1 t2. inversion H7.
-        subst G. inversion H11.
-        { subst G1 G2. inversion H9. 
-          assert (Hempty : ctx.empty = ctx.append G1 x0 T1). { admit. }
-          apply ctx.decide_append_empty in Hempty. inversion Hempty. }
-        { apply M.equal_commut in H4. apply ctx.decide_append_empty in H4. inversion H4. }
-        { apply M.equal_commut in H4. apply ctx.decide_append_empty in H4. inversion H4. }
-        { apply M.equal_commut in H4. apply ctx.decide_append_empty in H4. inversion H4. }
-      * (* non-empty *) rewrite -> H7. inversion H2. subst G3 t1 t2 T12. inversion H12.
-        subst x0 T0. eapply substitution_lemma.
-        { rewrite <- H9 in H14. rewrite -> M.commut in H14.
-          erewrite -> ctx.append_concat with (s2 := ctx.append G3 x2 T11) in H14.
-          Focus 2. reflexivity. apply H14. }
-        { inversion H10. subst x0 T0. inversion H. subst x0 v.
-          rewrite <- H8 in H1. inversion H1.
-          { eapply decide_append_empty in H17. inversion H17. }
-          { apply stty'_arbitrary with (x := x1) (tt := pvabs y ti0 t qun)
-            (ti := ((T11 --> ti) Q)) in H1. inversion H1 as [G1' H1']. inversion H1' as [G2' H1''].
-            inversion H1'' as [H1''l H1''r]. inversion H1''r.
-            subst G12 Q0 x3 T1 t2 ti0 T2 Q. admit. (* TODO *)
-            { eapply contains_append. reflexivity. }
-            { rewrite <- H13 in H14. admit. } 
-          } 
-        }
-        { rewrite -> M.commut. apply H11. } 
 Qed.
 
 
