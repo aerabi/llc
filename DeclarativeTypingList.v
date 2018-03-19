@@ -49,10 +49,20 @@ Inductive split' : T -> T -> T -> Prop :=
 where "G '≜' G1 '∘' G2" := (split' G G1 G2).
 
 (* Context Split Axioms, TODO *)
-Parameter unr : T -> T.
+Fixpoint unr (G : T) : T :=
+  match G with
+  | empty => empty
+  | append G' x (ty_bool qun) => append (unr G') x (ty_bool qun)
+  | append G' x (ty_pair ti1 ti2 qun) => append (unr G') x (ty_pair ti1 ti2 qun)
+  | append G' x (ty_arrow ti1 ti2 qun) => append (unr G') x (ty_arrow ti1 ti2 qun)
+  | append G' x _ => unr G'
+  end.
 Parameter split_id_l : forall G, G ≜ (unr G) ∘ G.
 Parameter split_id_r : forall G, G ≜ G ∘ (unr G).
 Parameter unr_members : forall G x P Q, contains (unr G) x (P Q) -> Q = qun.
+
+Parameter esplit_id_l : forall G, exists G', G ≜ G' ∘ G.
+Parameter esplit_id_r : forall G, exists G', G ≜ G ∘ G'.
 
 Axiom split_comm : forall G G1 G2, G ≜ G1 ∘ G2 -> G ≜ G2 ∘ G1.
 Axiom split_contains : forall G G1 G2 k v,

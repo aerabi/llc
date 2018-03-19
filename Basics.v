@@ -209,6 +209,13 @@ Proof.
       destruct q0; simpl; reflexivity. }
 Qed.
 
+Fixpoint v_q (vi : v) : q :=
+  match vi with
+  | pvbool bi qi => qi
+  | pvpair x y qi => qi
+  | pvabs x ti t' qi => qi
+  end.
+
 Fixpoint tmv (t : v) : tm :=
   match t with
   | pvbool bi qi => tmbool qi bi
