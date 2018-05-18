@@ -101,11 +101,18 @@ Proposition stty'_remove : forall S G x,
 Proof.
 Admitted.
 
+(* pull out G as well *)
 Inductive prty' : T -> tm -> ty -> Prop :=
   | T_Prog' : forall S G t ti,
     stty' S G ->
     G |- t | ti ->
     prty' S t ti.
+
+Inductive prty : T -> ctx.T -> tm -> ty -> Prop :=
+  | T_Prog : forall S G t ti,
+    stty' S G ->
+    G |- t | ti ->
+    prty S G t ti.
 
 Definition in' : T -> id -> Prop := contains_key.
 
@@ -214,6 +221,7 @@ Proof.
 Qed.
 
 (* Lemmas *)
+(* TODO : not correct *)
 Lemma ssse_weakening : forall (S S' S1 S2 : T) (t t' : tm),
     ssse S1 t S' t' ->
     S = S1 ∪ S2 ->
@@ -328,16 +336,53 @@ Proof.
     - admit.
 Qed.
 
-(* Preservation Lemma *)
-Lemma preservation : forall S t S' t' ti,
-  prty' S t ti ->
+(* Preservation Lemma *
+Lemma preservation : forall S t S' t',
+  (exists ti, prty' S t ti) ->
   ssse S t S' t' ->
-  prty' S' t' ti.
+  exists ti', prty' S' t' ti'.
 Proof.
+  intros S t S' t'. intros Hprty Hssse. induction Hssse. 
+  - admit.
+  - inversion Hprty as [ti Hprty']. inversion Hprty'. subst. inversion H0. subst.
+    assert (Hparty : prty' S t (ty_bool Q)). 
+    { eapply T_Prog'. apply H. (* proper weakening required *) admit. }
+    assert (Hexist : exists ti', prty' S' t' ti').
+    { apply IHHssse. exists (ty_bool Q). apply Hparty. }
+    inversion Hexist as [ti' Hexist']. (* try to define prty recursively *)
+    inversion Hexist' as [S0 G']. subst. exists ti. eapply T_Prog'. apply H1.
+    eapply dt.T_If. (* fixing the lemma: *)
+    assert (Hlemma : G' |- t' | (ty_bool Q)). { admit. }
+    apply Hlemma. Focus 3. apply dt.split_id_r.
+( *)
+
+(* Preservation Lemma *)
+Lemma preservation : forall S t S' t' ti G G1 G2,
+  ssse S t S' t' ->
+  stty' S G ->
+  G ≜ G1 ∘ G2 ->
+  G1 |- t | ti ->
+  exists G' G1', stty' S' G' /\ G' ≜ G1' ∘ G2 /\ G1' |- t' | ti.
+Proof.
+  intros S t S' t' ti G G1 G2 Hssse Hstty Hsplit Htty. 
+  generalize dependent ti.
+  generalize dependent G1.
+  generalize dependent G2.
+  induction Hssse.
+  - admit.
+  - intros G2 G1 Hsplit ti Htty.
+    inversion Htty. subst. assert (Hstty' : stty' S G). { auto. }
+    eapply IHHssse in Hstty.
+    
+ inversion H0. subst.
+    assert (Hprty' : prty S G t (ty_bool Q)).
+    { eapply T_Prog. apply H. 
+Qed.
+
   intros S t S' t' ti. induction t.
   - intros Hprty Hssse. inversion Hssse.
   - intros Hprty Hssse. inversion Hssse. subst S0 q b t'. 
-    inversion Hprty. subst S0 t ti0. eapply T_Prog'.
+    inversion Hprty. subst S0 t ti0. exists ti. eapply T_Prog'.
     + eapply T_NextS'.
       Focus 2. apply H.
       Focus 2. simpl. apply H0.
@@ -345,7 +390,11 @@ Proof.
     + assert (HX : ctx.append (dt.unr G) x ti = ctx.mult (ctx.append (dt.unr G) x ti) ctx.empty).
       { rewrite -> ctx.id_r. reflexivity. }
       rewrite -> HX. apply dt.T_Var. rewrite -> ctx.id_r. apply dt.q_rel''_unr.
-  - admit.
+  - intros Hprty Hssse. inversion Hssse.
+    { (* if eval *)
+      subst S0 t t0 t4 S'0 t'. inversion Hprty. subst S0 t ti0.
+      apply 
+    }
   - admit.
   - admit.
   - admit.
