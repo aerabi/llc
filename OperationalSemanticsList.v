@@ -336,6 +336,18 @@ Proof.
     - admit.
 Qed.
 
+Lemma split_assoc : forall G G1 G2 G3 G4,
+  G ≜ G1 ∘ G2 ->
+  G1 ≜ G3 ∘ G4 ->
+  exists Gi, (G ≜ G3 ∘ Gi /\ Gi ≜ G2 ∘ G4).
+Proof. Admitted.
+
+Lemma split_rearrange : forall G' G3' Gi G2 G4,
+  G' ≜ G3' ∘ Gi ->
+  Gi ≜ G2 ∘ G4 ->
+  exists G1', (G' ≜ G1' ∘ G2 /\ G1' ≜ G3' ∘ G4).
+Proof. Admitted.
+
 (* Preservation Lemma *
 Lemma preservation : forall S t S' t',
   (exists ti, prty' S t ti) ->
@@ -372,7 +384,15 @@ Proof.
   - admit.
   - intros G2 G1 Hsplit ti Htty.
     inversion Htty. subst. assert (Hstty' : stty' S G). { auto. }
-    eapply IHHssse in Hstty.
+    remember H7 as H7'. clear HeqH7'. eapply split_assoc in H7'. Focus 2. apply Hsplit.
+    inversion H7' as [Gi H7'']. inversion H7'' as [H7''l H7''r].
+    eapply IHHssse with (ti := ty_bool Q) in Hstty'. Focus 2. apply H7''l. Focus 2. auto.
+    inversion Hstty' as [G' H'stty']. inversion H'stty' as [G1' H''stty'].
+    inversion H''stty' as [HH HH1]. inversion HH1 as [HH' HH''].
+    pose proof split_rearrange as HHH. eapply HHH in H7''r. Focus 2. apply HH'.
+    inversion H7''r as [G1'' H7''r']. inversion H7''r' as [H7''rl H7''rr].
+    exists G'. exists G1''. split. auto. split. auto.
+    eapply dt.T_If. apply HH''. Focus 3. apply H7''rr. auto. auto.
     
  inversion H0. subst.
     assert (Hprty' : prty S G t (ty_bool Q)).
