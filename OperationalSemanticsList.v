@@ -336,11 +336,52 @@ Proof.
     - admit.
 Qed.
 
+Axiom p_unique : forall (P P' : q -> ctx.V) (qi qi' : q), 
+  P qi = P' qi' -> qi = qi'.
+
 Lemma split_assoc : forall G G1 G2 G3 G4,
   G ≜ G1 ∘ G2 ->
   G1 ≜ G3 ∘ G4 ->
   exists Gi, (G ≜ G3 ∘ Gi /\ Gi ≜ G2 ∘ G4).
-Proof. Admitted.
+Proof.
+  intros G G1 G2 G3 G4 H. generalize dependent G3. generalize dependent G4. 
+  induction H.
+  - intros G3 G4 H'. inversion H'; subst. exists ctx.empty. split; auto.
+  - intros G3 G4 H'. inversion H'.
+    + subst G0 x0. remember H5 as H5'. clear HeqH5'.
+      apply IHsplit' in H5'. inversion H5' as [Gi H5'']. inversion H5'' as [HG HGi].
+      exists (ctx.append Gi x (P qun)). rewrite -> H3. split; apply dt.M_Un; auto.
+    + apply p_unique in H3. inversion H3.
+    + apply p_unique in H3. inversion H3.
+  - intros G3 G4 H'. inversion H'.
+    + apply p_unique in H3. inversion H3.
+    + subst G0 x0 G6. remember H5 as H5'. clear HeqH5'.
+      apply IHsplit' in H5'. inversion H5' as [Gi H5'']. inversion H5'' as [HG HGi].
+      exists Gi. split; auto. apply dt.M_Lin1. auto.
+    + subst G0 x0 G4. remember H5 as H5'. clear HeqH5'.
+      apply IHsplit' in H5'. inversion H5' as [Gi H5'']. inversion H5'' as [HG HGi].
+      exists (ctx.append Gi x (P qlin)). rewrite -> H3. split; apply dt.M_Lin2; auto.
+  - intros G3 G4 H'. inversion H'.
+    + apply IHsplit' in H'. inversion H' as [Gi H'']. inversion H'' as [HG HGi].
+      subst G1 G3 G4. exists (ctx.append Gi x (P qlin)). split.
+      * apply dt.M_Lin2. auto.
+      * apply dt.M_Lin1. auto.
+    + rewrite -> H2. rewrite -> H3. apply IHsplit' in H'. 
+      inversion H' as [Gi H'']. inversion H'' as [HG HGi].
+      subst G1 G3 G4. exists (ctx.append Gi x (P qlin)). split.
+      * apply dt.M_Lin2. auto.
+      * apply dt.M_Lin1. auto.
+    + rewrite -> H2. apply IHsplit' in H'. 
+      inversion H' as [Gi H'']. inversion H'' as [HG HGi].
+      subst G1 G3 G4. exists (ctx.append Gi x (P qlin)). split.
+      * apply dt.M_Lin2. auto.
+      * apply dt.M_Lin1. auto.
+    + rewrite -> H3. apply IHsplit' in H'. 
+      inversion H' as [Gi H'']. inversion H'' as [HG HGi].
+      subst G1 G3 G4. exists (ctx.append Gi x (P qlin)). split.
+      * apply dt.M_Lin2. auto.
+      * apply dt.M_Lin1. auto.
+Qed.
 
 Lemma split_rearrange : forall G' G3' Gi G2 G4,
   G' ≜ G3' ∘ Gi ->
@@ -393,10 +434,8 @@ Proof.
     inversion H7''r as [G1'' H7''r']. inversion H7''r' as [H7''rl H7''rr].
     exists G'. exists G1''. split. auto. split. auto.
     eapply dt.T_If. apply HH''. Focus 3. apply H7''rr. auto. auto.
-    
- inversion H0. subst.
-    assert (Hprty' : prty S G t (ty_bool Q)).
-    { eapply T_Prog. apply H. 
+  - intros G2 G1 Hsplit ti Htty.
+    inversion Htty. subst.
 Qed.
 
   intros S t S' t' ti. induction t.
