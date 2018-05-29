@@ -387,7 +387,38 @@ Lemma split_rearrange : forall G' G3' Gi G2 G4,
   G' ≜ G3' ∘ Gi ->
   Gi ≜ G2 ∘ G4 ->
   exists G1', (G' ≜ G1' ∘ G2 /\ G1' ≜ G3' ∘ G4).
-Proof. Admitted.
+Proof.
+  intros G' G3' Gi G2 G4 H. generalize dependent G4. generalize dependent G2.
+  induction H.
+  - intros G2 G4 H. inversion H. subst. exists ctx.empty. split; auto.
+  - intros G3 G4 H'. inversion H'.
+    + subst G0 x0. apply IHsplit' in H5. inversion H5 as [G1' H5'].
+      inversion H5' as [HG HG1']. exists (ctx.append G1' x (P0 qun)). split.
+      * apply dt.M_Un. auto.
+      * apply dt.M_Un. auto.
+    + apply p_unique in H3. inversion H3.
+    + apply p_unique in H3. inversion H3.
+  - intros G3 G4 H'. inversion H'.
+    + apply IHsplit' in H'. inversion H' as [G1' H'']. inversion H'' as [HG HG1'].
+      exists (ctx.append G1' x (P qlin)). subst. split; apply dt.M_Lin1; auto.
+    + apply IHsplit' in H'. inversion H' as [G1' H'']. inversion H'' as [HG HG1'].
+      rewrite -> H2. rewrite -> H3. exists (ctx.append G1' x (P qlin)).
+      split; apply dt.M_Lin1; auto.
+    + apply IHsplit' in H'. inversion H' as [G1' H'']. inversion H'' as [HG HG1'].
+      rewrite -> H2. exists (ctx.append G1' x (P qlin)).
+      split; apply dt.M_Lin1; auto.
+    + apply IHsplit' in H'. inversion H' as [G1' H'']. inversion H'' as [HG HG1'].
+      rewrite -> H3. exists (ctx.append G1' x (P qlin)).
+      split; apply dt.M_Lin1; auto.
+  - intros G3 G4 H'. inversion H'.
+    + apply p_unique in H3. inversion H3.
+    + apply IHsplit' in H5. inversion H5 as [G1' H'']. inversion H'' as [HG HG1'].
+      exists G1'. split; try apply dt.M_Lin2; auto.
+    + apply IHsplit' in H5. inversion H5 as [G1' H'']. inversion H'' as [HG HG1'].
+      exists (ctx.append G1' x (P0 qlin)). split.
+      * apply dt.M_Lin1. auto.
+      * apply dt.M_Lin2. auto.
+Qed.
 
 (* Preservation Lemma *
 Lemma preservation : forall S t S' t',
