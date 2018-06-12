@@ -440,7 +440,7 @@ Proof.
     apply T_NextS' with (G := G) (G1 := (dt.unr G)); auto. apply dt.split_id_l.
     split. destruct Q.
     + (* lin *) rewrite <- H2. apply dt.M_Lin1. apply Hsplit.
-    + (* unr *) admit. (* no provable *)
+    + (* unr *) admit. (* not provable *)
     + rewrite <- ctx.id_r with (m := ctx.append G1 x ti). rewrite <- H2. apply dt.T_Var.
       apply dt.q_rel''_concat_ctx; auto. apply dt.Q_Rel_Ctx_Empty.
   - intros G2 G1 Hsplit ti Htty.
@@ -455,7 +455,12 @@ Proof.
     exists G'. exists G1''. split. auto. split. auto.
     eapply dt.T_If. apply HH''. Focus 3. apply H7''rr. auto. auto.
   - intros G2 G1 Hsplit ti Htty.
-    inversion Htty. subst.
+    inversion Htty. subst. inversion H0.
+    + (* lin *) subst x0. admit.
+    + (* unr *) subst Q S0 x0. exists G. rewrite <- H5. exists G1. split; auto.
+      split; auto. admit. (* type weakening, uncontrolled *)
+  - admit.
+  - 
 Qed.
 
 
