@@ -420,26 +420,6 @@ Proof.
       * apply dt.M_Lin2. auto.
 Qed.
 
-(* Preservation Lemma *
-Lemma preservation : forall S t S' t',
-  (exists ti, prty' S t ti) ->
-  ssse S t S' t' ->
-  exists ti', prty' S' t' ti'.
-Proof.
-  intros S t S' t'. intros Hprty Hssse. induction Hssse. 
-  - admit.
-  - inversion Hprty as [ti Hprty']. inversion Hprty'. subst. inversion H0. subst.
-    assert (Hparty : prty' S t (ty_bool Q)). 
-    { eapply T_Prog'. apply H. (* proper weakening required *) admit. }
-    assert (Hexist : exists ti', prty' S' t' ti').
-    { apply IHHssse. exists (ty_bool Q). apply Hparty. }
-    inversion Hexist as [ti' Hexist']. (* try to define prty recursively *)
-    inversion Hexist' as [S0 G']. subst. exists ti. eapply T_Prog'. apply H1.
-    eapply dt.T_If. (* fixing the lemma: *)
-    assert (Hlemma : G' |- t' | (ty_bool Q)). { admit. }
-    apply Hlemma. Focus 3. apply dt.split_id_r.
-( *)
-
 (* Preservation Lemma *)
 Lemma preservation : forall S t S' t' ti G G1 G2,
   ssse S t S' t' ->
@@ -453,7 +433,16 @@ Proof.
   generalize dependent G1.
   generalize dependent G2.
   induction Hssse.
-  - admit.
+  - intros G2 G1 Hsplit ti Htty. inversion Htty. subst G0 Q0 B0.
+    assert (Htty' : (dt.unr G) |- tmbool Q B | ti).
+    { rewrite <- H2. apply dt.T_Bool. apply dt.q_rel''_unr. }
+    exists (ctx.append G x ti). eexists. split. Focus 1.
+    apply T_NextS' with (G := G) (G1 := (dt.unr G)); auto. apply dt.split_id_l.
+    split. destruct Q.
+    + (* lin *) rewrite <- H2. apply dt.M_Lin1. apply Hsplit.
+    + (* unr *) admit. (* no provable *)
+    + rewrite <- ctx.id_r with (m := ctx.append G1 x ti). rewrite <- H2. apply dt.T_Var.
+      apply dt.q_rel''_concat_ctx; auto. apply dt.Q_Rel_Ctx_Empty.
   - intros G2 G1 Hsplit ti Htty.
     inversion Htty. subst. assert (Hstty' : stty' S G). { auto. }
     remember H7 as H7'. clear HeqH7'. eapply split_assoc in H7'. Focus 2. apply Hsplit.
@@ -469,27 +458,7 @@ Proof.
     inversion Htty. subst.
 Qed.
 
-  intros S t S' t' ti. induction t.
-  - intros Hprty Hssse. inversion Hssse.
-  - intros Hprty Hssse. inversion Hssse. subst S0 q b t'. 
-    inversion Hprty. subst S0 t ti0. exists ti. eapply T_Prog'.
-    + eapply T_NextS'.
-      Focus 2. apply H.
-      Focus 2. simpl. apply H0.
-      Focus 1. apply dt.split_id_r.
-    + assert (HX : ctx.append (dt.unr G) x ti = ctx.mult (ctx.append (dt.unr G) x ti) ctx.empty).
-      { rewrite -> ctx.id_r. reflexivity. }
-      rewrite -> HX. apply dt.T_Var. rewrite -> ctx.id_r. apply dt.q_rel''_unr.
-  - intros Hprty Hssse. inversion Hssse.
-    { (* if eval *)
-      subst S0 t t0 t4 S'0 t'. inversion Hprty. subst S0 t ti0.
-      apply 
-    }
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-Qed.
+
 
 
 End OperationalSemantics.
