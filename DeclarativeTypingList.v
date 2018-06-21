@@ -41,10 +41,10 @@ Inductive split' : T -> T -> T -> Prop :=
   | M_Empty : empty ≜ empty ∘ empty
   | M_Un : forall G G1 G2 x P,
       G ≜ G1 ∘ G2 -> (append G x (P qun)) ≜ (append G1 x (P qun)) ∘ (append G2 x (P qun))
-  | M_Lin1 : forall G G1 G2 x P, 
-      G ≜ G1 ∘ G2 -> (append G x (P qlin)) ≜ (append G1 x (P qlin)) ∘ G2
-  | M_Lin2 : forall G G1 G2 x P,
-      G ≜ G1 ∘ G2 -> (append G x (P qlin)) ≜ G1 ∘ (append G2 x (P qlin))
+  | M_Lin1 : forall G G1 G2 x pp, 
+      G ≜ G1 ∘ G2 -> (append G x pp) ≜ (append G1 x pp) ∘ G2
+  | M_Lin2 : forall G G1 G2 x pp,
+      G ≜ G1 ∘ G2 -> (append G x pp) ≜ G1 ∘ (append G2 x pp)
 
 where "G '≜' G1 '∘' G2" := (split' G G1 G2).
 
@@ -209,6 +209,19 @@ Proof.
     + apply IHt1 in H2. apply H2.
     + apply IHt2 in H4. apply H4.
     + apply M_Un with (x := x) (P := P) in H6. apply H6.
+Qed.
+
+Lemma unrestricted_weakening_union : forall G G' t T,
+  G |- t | T ->
+  qun 〔G'〕 ->
+  (G ∪ G') |- t | T.
+Proof.
+  intros G. induction G'.
+  - intros t T H H'. rewrite -> id_r. auto.
+  - intros t T H H'. inversion H'. subst Q G0 x T0. remember H as HH.
+    clear HeqHH. apply IHG' in HH; auto. inversion H3. subst Q. inversion H0.
+    rewrite -> append_concat with (s' := G') (k := k) (v := P qun); auto.
+    apply unrestricted_weakening. auto.
 Qed.
 
 Lemma unrestricted_contraction : forall G t x1 x2 x3 T P,
