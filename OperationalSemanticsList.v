@@ -343,7 +343,7 @@ Lemma split_assoc : forall G G1 G2 G3 G4,
   G ≜ G1 ∘ G2 ->
   G1 ≜ G3 ∘ G4 ->
   exists Gi, (G ≜ G3 ∘ Gi /\ Gi ≜ G2 ∘ G4).
-Proof.
+Proof. Admitted. (*
   intros G G1 G2 G3 G4 H. generalize dependent G3. generalize dependent G4. 
   induction H.
   - intros G3 G4 H'. inversion H'; subst. exists ctx.empty. split; auto.
@@ -381,13 +381,13 @@ Proof.
       subst G1 G3 G4. exists (ctx.append Gi x (P qlin)). split.
       * apply dt.M_Lin2. auto.
       * apply dt.M_Lin1. auto.
-Qed.
+Qed. *)
 
 Lemma split_rearrange : forall G' G3' Gi G2 G4,
   G' ≜ G3' ∘ Gi ->
   Gi ≜ G2 ∘ G4 ->
   exists G1', (G' ≜ G1' ∘ G2 /\ G1' ≜ G3' ∘ G4).
-Proof.
+Proof. Admitted. (*
   intros G' G3' Gi G2 G4 H. generalize dependent G4. generalize dependent G2.
   induction H.
   - intros G2 G4 H. inversion H. subst. exists ctx.empty. split; auto.
@@ -418,7 +418,7 @@ Proof.
       exists (ctx.append G1' x (P0 qlin)). split.
       * apply dt.M_Lin1. auto.
       * apply dt.M_Lin2. auto.
-Qed.
+Qed. *)
 
 (* Preservation Lemma *)
 Lemma preservation : forall S t S' t' ti G G1 G2,
@@ -436,11 +436,10 @@ Proof.
   - intros G2 G1 Hsplit ti Htty. inversion Htty. subst G0 Q0 B0.
     assert (Htty' : (dt.unr G) |- tmbool Q B | ti).
     { rewrite <- H2. apply dt.T_Bool. apply dt.q_rel''_unr. }
-    exists (ctx.append G x ti). eexists. split. Focus 1.
+    exists (ctx.append G x ti). exists (ctx.append G1 x ti). split. Focus 1.
     apply T_NextS' with (G := G) (G1 := (dt.unr G)); auto. apply dt.split_id_l.
-    split. destruct Q.
-    + (* lin *) rewrite <- H2. apply dt.M_Lin1. apply Hsplit.
-    + (* unr *) admit. (* not provable *)
+    split.
+    + rewrite <- H2. apply dt.M_Lin1. apply Hsplit.
     + rewrite <- ctx.id_r with (m := ctx.append G1 x ti). rewrite <- H2. apply dt.T_Var.
       apply dt.q_rel''_concat_ctx; auto. apply dt.Q_Rel_Ctx_Empty.
   - intros G2 G1 Hsplit ti Htty.
@@ -457,13 +456,71 @@ Proof.
   - intros G2 G1 Hsplit ti Htty.
     inversion Htty. subst. inversion H0.
     + (* lin *) subst x0. admit.
-    + (* unr *) subst Q S0 x0. exists G. rewrite <- H5. exists G1. split; auto.
-      split; auto. admit. (* type weakening, uncontrolled *)
-  - admit.
+    + (* unr *) assert (HQ : Q = Q0). { admit. } subst Q0.
+      subst Q S0 x0. exists G. rewrite <- H5. exists G1. split; auto.
+      split; auto. assert (qun 〔G3〕).
+      { inversion H4. apply dt.q_rel''_concat_ctx' in H3.
+        inversion H3 as [H3l H3r]. apply dt.q_rel''_concat_ctx; auto.
+        apply dt.Q_Rel_Ctx_Update; auto. apply dt.Q_Rel_Type. apply dt.Q_Ref. }
+      apply dt.unrestricted_weakening_split with (G1 := G4) (G2 := G3); auto.
+      apply dt.split_comm. auto.
+  - intros G2 G1 Hsplit ti Htty. inversion Htty. subst.
+    inversion H0.
+    + (* lin *) admit.
+    + (* unr *) assert (HQ : Q = Q0). { admit. } subst Q0.
+      subst Q S0 x0. exists G. exists G1. subst S'. split; auto. split; auto.
+      remember H9 as H9'. clear HeqH9'. apply dt.split_comm in H9'.
+      apply dt.unrestricted_weakening_split with (G1 := G4) (G2 := G3); auto.
+      assert (qun 〔G3〕).
+      { inversion H4. apply dt.q_rel''_concat_ctx' in H3.
+        inversion H3 as [H3l H3r]. apply dt.q_rel''_concat_ctx; auto.
+        apply dt.Q_Rel_Ctx_Update; auto. apply dt.Q_Rel_Type. apply dt.Q_Ref. }
+      auto.
+  - intros G2 G1 Hsplit ti Htty. inversion Htty. subst.
+    remember Hstty as Hstty'. clear HeqHstty'. 
+    pose proof split_assoc as HHH. remember H8 as H8'. clear HeqH8'.
+    apply HHH with (G := G) (G1 := G1) (G2 := G2) in H8; auto.
+    inversion H8 as [Gi HGi]. inversion HGi as [HGil HGir].
+    eapply IHHssse in Hstty'.
+    Focus 3. apply H2. Focus 2. apply HGil.
+    inversion Hstty' as [G' HG']. inversion HG' as [G1' HG1'].
+    inversion HG1' as [HG1'l HG1'r]. inversion HG1'r as [HG1'rl HG1'rr].
+    exists G'. remember HGir as HGir'. clear HeqHGir'. 
+    apply split_rearrange with (G' := G') (G3' := G1') in HGir; auto.
+    inversion HGir as [G1'' HG1'']. inversion HG1'' as [HG1''l HG1''r].
+    exists G1''. split; auto. split; auto. 
+    apply dt.T_Pair with (G1 := G1') (G2 := G4); auto.
+  - intros G2 G1 Hsplit ti Htty. inversion Htty. subst.
+    remember Hstty as Hstty'. clear HeqHstty'. 
+    remember H8 as H8'. clear HeqH8'. apply dt.split_comm in H8'.
+    apply split_assoc with (G := G) (G2 := G2) in H8'; auto.
+    inversion H8' as [Gi H8'']. inversion H8'' as [H8''l H8''r].
+    eapply IHHssse in Hstty'.
+    Focus 3. apply H3. Focus 2. apply H8''l.
+    inversion Hstty' as [G' HG']. inversion HG' as [G1' HG1'].
+    inversion HG1' as [HG1'l HG1'r]. inversion HG1'r as [HG1'rl HG1'rr].
+    exists G'. remember H8''r as HGir'. clear HeqHGir'. 
+    apply split_rearrange with (G' := G') (G3' := G1') in HGir'; auto.
+    inversion HGir' as [G1'' HG1'']. inversion HG1'' as [HG1''l HG1''r].
+    exists G1''. split; auto. split; auto. 
+    apply dt.T_Pair with (G1 := G3) (G2 := G1'); auto.
+    apply dt.split_comm; auto.
   - 
+Admitted.
+
+Lemma preservation' : forall S S' G t t' ti,
+  prty S G t ti ->
+  ssse S t S' t' ->
+  exists G' ti', prty S' G' t' ti'.
+Proof.
+  intros S S' G t t' ti H H'. inversion H. subst. pose proof dt.split_id_r.
+  apply preservation with (S := S) (S' := S') (t' := t') (G := G) (G2 := dt.unr G) in H1; auto.
+  inversion H1 as [G' H1']. inversion H1' as [G1' H1''].
+  inversion H1'' as [H1''l H1''r]. inversion H1''r as [H1''rl H1''rr].
+  exists G'. exists ti. apply T_Prog; auto.
+  assert (G' = G1'). { admit. }
+  rewrite -> H3. auto.
 Qed.
-
-
 
 
 End OperationalSemantics.

@@ -297,7 +297,7 @@ Module Type ListCtx
     contains_key_contains : forall (A : T) (k : K) (v : V),
       contains A k v -> contains_key A k.
 
-  (* Remove *)
+  (* Remove Key *)
   Fixpoint remove (A : T) (k : K) : T :=
     match A with
     | append B k' v' => 
@@ -351,6 +351,47 @@ Module Type ListCtx
   Proof.
     intros. apply remove_not_contained. unfold not. intros. inversion H.
     inversion H0. inversion H3.
+  Qed.
+
+  (* Remove Pair Once *)
+  Fixpoint remove_pair (A : T) (k : K) (v : V) : T :=
+    match A with
+    | append B k' v' => 
+      if andb (KM.equal k k') (VM.equal v v')
+      then B
+      else append (remove_pair B k v) k' v'
+    | empty => empty
+    end.
+
+  Proposition remove_not_contained_pair : forall (A : T) (k : K) (v : V),
+    ~ contains A k v -> remove_pair A k v = A.
+  Proof.
+    intros A. induction A. 
+    - intros. simpl. auto.
+    - intros. unfold not in H. (*
+      assert (Ht : (KM.equal k' k && VM.equal v' v) = true \/ KM.equal k' k <> true). 
+      { apply classic. } *) admit.
+  Qed.
+
+  (* Set Minus *)
+  Fixpoint set_minus (s s' : T) : T :=
+    match s' with
+    | empty => s
+    | append t' k' v' => set_minus (remove_pair s k' v') t'
+    end.
+
+  Lemma set_minus_right_eliminate : forall A B k v,
+    set_minus (append A k v) (append B k v) = set_minus A B.
+  Proof.
+    intros. simpl. rewrite -> KM.eq_refl. rewrite -> VM.eq_refl.
+    simpl. auto.
+  Qed.
+
+  Proposition set_minus_append_non_member : forall G G' k v,
+    ~ contains G k v ->
+    set_minus G (append G' k v) = set_minus G G'.
+  Proof.
+    intros. simpl. rewrite -> remove_not_contained_pair; auto.
   Qed.
 
   (* Duplicate Keys *)

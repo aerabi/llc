@@ -48,6 +48,14 @@ Inductive split' : T -> T -> T -> Prop :=
 
 where "G '≜' G1 '∘' G2" := (split' G G1 G2).
 
+Lemma split_to_empty : forall G G',
+  G ≜ G' ∘ Ø -> G = G'.
+Proof.
+  intros G G'. generalize dependent G. induction G'.
+  - intros. inversion H. subst G. auto.
+  - intros. inversion H. apply IHG' in H5. rewrite -> H5. auto.
+Qed.
+
 (* Context Split Axioms, TODO *)
 Fixpoint unr (G : T) : T :=
   match G with
@@ -69,6 +77,25 @@ Axiom split_contains : forall G G1 G2 k v,
     G ≜ G1 ∘ G2 ->
     contains G2 k v ->
     contains G k v.
+
+(* Split to Union *)
+Lemma split_to_union : forall G G1 G2,
+  G ≜ G1 ∘ G2 -> G = G1 ∪ (set_minus G2 G1).
+Proof.
+  intros G G1. generalize dependent G. induction G1.
+  - intros G G2 H. inversion H; auto. simpl. rewrite -> H1. rewrite -> H3.
+    apply split_comm in H. apply split_to_empty in H. auto.
+  - intros G G2 H. inversion H.
+    + rewrite -> set_minus_right_eliminate. apply IHG1 in H5. rewrite -> commut.
+      rewrite -> commut in H5. rewrite -> H5. apply equal_commut.
+      apply append_concat. auto.
+    + assert (HH : ~ contains G2 k v). { admit. } (* wlg *)
+      apply set_minus_append_non_member with (G' := G1) in HH.
+      rewrite -> HH. apply IHG1 in H5. rewrite -> commut.
+      rewrite -> commut in H5. rewrite -> H5. apply equal_commut.
+      apply append_concat. auto.
+    + admit.
+Qed.
 
 (* Relations between Quantifiers and Types *)
 Reserved Notation "Q1 '<<' Q2" (at level 70).  (* Q1 ⊑ Q2 *)
@@ -223,6 +250,14 @@ Proof.
     rewrite -> append_concat with (s' := G') (k := k) (v := P qun); auto.
     apply unrestricted_weakening. auto.
 Qed.
+
+Lemma unrestricted_weakening_split : forall G G1 G2 t T,
+  G1 |- t | T ->
+  qun 〔G2〕 ->
+  G ≜ G1 ∘ G2 ->
+  G |- t | T.
+Proof.
+  Admitted.
 
 Lemma unrestricted_contraction : forall G t x1 x2 x3 T P,
   append (append G x2 (P qun) ) x3 (P qun) |- t | T ->
