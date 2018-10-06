@@ -505,6 +505,13 @@ Proof.
     exists G1''. split; auto. split; auto. 
     apply dt.T_Pair with (G1 := G3) (G2 := G1'); auto.
     apply dt.split_comm; auto.
+  - intros G2 G1 Hsplit ti Htty. inversion Htty.
+    exists (ctx.append G2 x ((T1 ** T2) Q)). exists (ctx.append (dt.unr G2) x ((T1 ** T2) Q)).
+    split; try split.
+    + eapply T_NextS'; try apply Hsplit; try apply Hstty. simpl. rewrite -> H7. apply Htty. 
+    + apply dt.M_Lin1. apply dt.split_id_l.
+    + rewrite <- ctx.id_r with (m := ctx.append (dt.unr G2) x ((T1 ** T2) Q)).
+      apply dt.T_Var. rewrite -> ctx.id_r. apply dt.q_rel''_unr.
   - 
 Admitted.
 
