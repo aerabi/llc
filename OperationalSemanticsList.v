@@ -512,6 +512,19 @@ Proof.
     + apply dt.M_Lin1. apply dt.split_id_l.
     + rewrite <- ctx.id_r with (m := ctx.append (dt.unr G2) x ((T1 ** T2) Q)).
       apply dt.T_Var. rewrite -> ctx.id_r. apply dt.q_rel''_unr.
+  - intros G2 G1 Hsplit ti Htty. inversion Htty. subst.
+    remember Hstty as Hstty'. clear HeqHstty'.
+    remember H7 as H7'. clear HeqH7'.
+    apply split_assoc with (G := G) (G2 := G2) in H7'; auto.
+    inversion H7' as [Gi H7'']. inversion H7'' as [H7''l H7''r].
+    eapply IHHssse in Hstty'. Focus 3. apply H5. Focus 2. apply H7''l.
+    inversion Hstty' as [G' HG']. inversion HG' as [G1' HG1'].
+    inversion HG1' as [HG1'l HG1'r]. inversion HG1'r as [HG1'rl HG1'rr].
+    exists G'. remember H7''r as HGir'. clear HeqHGir'. 
+    apply split_rearrange with (G' := G') (G3' := G1') in HGir'; auto.
+    inversion HGir' as [G1'' HG1'']. inversion HG1'' as [HG1''l HG1''r].
+    exists G1''. split; auto. split; auto.
+    eapply dt.T_Split. Focus 3. apply HG1''r. apply HG1'rr. apply H6.
   - 
 Admitted.
 
