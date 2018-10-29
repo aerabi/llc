@@ -525,7 +525,16 @@ Proof.
     inversion HGir' as [G1'' HG1'']. inversion HG1'' as [HG1''l HG1''r].
     exists G1''. split; auto. split; auto.
     eapply dt.T_Split. Focus 3. apply HG1''r. apply HG1'rr. apply H6.
-  - 
+  - intros G2 G1 Hsplit ti Htty. inversion Htty. subst. inversion H0.
+    + (* lin *) subst Q x0. admit.
+    + (* unr *) subst Q x0. exists G. exists G1. subst S'. admit.
+  - rename ti into T1. intros G2 G1 Hsplit T Htty. inversion Htty. subst.
+    assert (exists x, x = alloc S). { exists (alloc S). auto. } inversion H as [x H'].
+    rewrite <- H'. eexists. eexists. split. 
+    { eapply T_NextS'. Focus 2. apply Hstty. apply Hsplit. simpl. apply Htty. }
+    split. { apply dt.M_Lin1. apply dt.split_id_l. }
+    rewrite <- ctx.id_r with (m := ctx.append (dt.unr G2) x ((T1 --> T2) Q)).
+    apply dt.T_Var. rewrite -> ctx.id_r. apply dt.q_rel''_unr.
 Admitted.
 
 Lemma preservation' : forall S S' G t t' ti,
