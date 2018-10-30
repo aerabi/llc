@@ -549,8 +549,22 @@ Proof.
     inversion HGir' as [G1'' HG1'']. inversion HG1'' as [HG1''l HG1''r].
     exists G1''. split; auto. split; auto. 
     eapply dt.T_App. apply HG1'rr. apply H3. apply HG1''r.
-  - admit.
-  - admit.
+  - intros G2 G1 Hsplit ti Htty. inversion Htty. subst.
+    remember Hstty as Hstty'. clear HeqHstty'. 
+    remember H5 as H8'. clear HeqH8'. apply dt.split_comm in H8'.
+    apply split_assoc with (G := G) (G2 := G2) in H8'; auto.
+    inversion H8' as [Gi H8'']. inversion H8'' as [H8''l H8''r].
+    eapply IHHssse in Hstty'.
+    Focus 3. apply H3. Focus 2. apply H8''l.
+    inversion Hstty' as [G' HG']. inversion HG' as [G1' HG1'].
+    inversion HG1' as [HG1'l HG1'r]. inversion HG1'r as [HG1'rl HG1'rr].
+    exists G'. remember H8''r as HGir'. clear HeqHGir'. 
+    apply split_rearrange with (G' := G') (G3' := G1') in HGir'; auto.
+    inversion HGir' as [G1'' HG1'']. inversion HG1'' as [HG1''l HG1''r].
+    exists G1''. split; auto. split; auto. 
+    eapply dt.T_App. apply H1. apply HG1'rr. apply dt.split_comm. auto.
+  - rename ti into T. intros G2 G1 Hsplit ti Htty. inversion Htty. subst.
+    admit.
 Qed.
 
 Lemma preservation' : forall S S' G t t' ti,
